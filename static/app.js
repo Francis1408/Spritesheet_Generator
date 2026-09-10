@@ -1,8 +1,22 @@
 const image = document.getElementById('drag-img');
 const dropzones = document.querySelectorAll(".dropzone");
+const runButtonEl = document.getElementById('run-button');
+
 
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => e.preventDefault());
+
+function enableExecution() {
+
+    let dropzones_filled = 0;
+    // Check if three positions are filled
+    dropzones.forEach(dropzone => {
+        if(dropzone.querySelector('img')) dropzones_filled++;
+    })
+
+    if (dropzones_filled >= 3) runButtonEl.disabled = false;
+    else runButtonEl.disabled = true;
+}
 
 
 dropzones.forEach(zone => {
@@ -48,5 +62,8 @@ dropzones.forEach(zone => {
         img.onload = () => URL.revokeObjectURL(img.src);
         
         zone.appendChild(img);
+        enableExecution();
     });
 });
+
+enableExecution()
