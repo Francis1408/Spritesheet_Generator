@@ -1,12 +1,17 @@
 body {
     font-family: sans-serif;
-    display: flex;
-    gap: 20px;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(3, 1fr);
     justify-content: center;
     align-items: center;
     height: 100vh;
     margin: 0;
     background-color: #f4f4f9;
+}
+
+body > div {
+  width: 300px;   
 }
 
 .dropzone {
@@ -24,6 +29,18 @@ body {
 .dropzone.hover {
     background-color: #e3f2fd;
     border-color: #2196f3;
+}
+
+.image-area {
+    gap: 10px;
+    justify-content: center;
+}
+
+.image-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+
 }
 
 img {
