@@ -1,64 +1,133 @@
 from pathlib import Path
 from flask import Flask, jsonify, request, send_file, abort, send_from_directory
 from utils.spritesheet_builder import build_sprite_sheet
+from config import SPRITE_POS, MIN_IMAGES, PIPELINE
 import uuid, json
 import cv2 as cv
 
+
 app = Flask(__name__, static_folder="static", static_url_path="")
 JOBS = Path("/tmp/spritejobs") # Image caching path
+JOBS.mkdir(parents=True, exist_ok=True)
 
 
-# ======= CACHING ROUTES ===========
+# ======= JOB HELPERS ===========
+
 def job_dir(job_id):
     d = JOBS / job_id
     if not d.is_dir():
         abort(404, "unknown job")
     return d
 
-@app.post("/api/jobs")
-def create_job():
-    job_id = uuid.uuid4.hex()
-    d = JOBS / job_id
-    (d / "steps").mkdir(parents=True)
-    (d / "state.json").write_text(json.dumps({"step": 0, "done": []}))
-    return {"job_id": job_id}
+
+def read_state(d):
+    return json.loads((d / "state.json").read_text())
 
 
-# ======= UTILS ROUTES ===========
-def advance(d, step, name, artifact=None):
-    state = json.loads((d / "state.json").read_text())
-    state["step"] = step
+def write_state(d, state):
+    tmp = d / "state.json.tmp"
+    tmp.write_text(json.dumps(state, indent=2, ensure_ascii=False))
+    tmp.replace(d / "state.json")
+
+
+def advance(d, name, **extra):
+    """Mark a step finished. Extra kwargs are merged into state.json."""
+    state = read_state(d)
     if name not in state["done"]:
         state["done"].append(name)
-    if artifact:
-        state.setdefault("artifacts", {})[name] = artifact
-    (d / "state.json").write_text(json.dumps(state))
+    state.update(extra)
+    write_state(d, state)
 
+
+def invalidate_from(d, name):
+    """Drop this step and everything after it, so a re-run can't leave stale output."""
+    order = [s["name"] for s in PIPELINE]
+    stale = order[order.index(name):]
+
+    for step in stale:
+        for p in (d / "steps").glob(f"{step}.*"):
+            p.unlink()
+
+    state = read_state(d)
+    state["done"] = [s for s in state["done"] if s not in stale]
+    write_state(d, state)
+
+
+def save_image(d, name, img):
+    ok, buf = cv.imencode(".png", img)
+    if not ok:
+        raise RuntimeError(f"could not encode {name} as png")
+
+    out = d / "steps" / f"{name}.png"
+    tmp = out.with_name(out.name + ".tmp")
+    tmp.write_bytes(buf.tobytes())
+    tmp.replace(out)
+
+
+def save_data(d, name, data):
+    out = d / "steps" / f"{name}.json"
+    tmp = out.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    tmp.replace(out)
+
+
+def require_artifact(d, name, ext):
+    p = d / "steps" / f"{name}.{ext}"
+    if not p.exists():
+        abort(409, f"run the {name} step first")
+    return p
+
+
+# ======= JOB ROUTES ===========
+@app.get("/api/pipeline")
+def get_pipeline():
+    return jsonify(PIPELINE)
+
+@app.get("/api/minimages")
+def get_minimages():
+    return jsonify(value=MIN_IMAGES)
+
+@app.post("/api/jobs")
+def create_job():
+    job_id = uuid.uuid4().hex
+    d = JOBS / job_id
+    (d / "steps").mkdir(parents=True)
+    (d / "sources").mkdir(parents=True)
+    write_state(d, {"done": [], "sources": {}})
+    return {"job_id": job_id}
 
 @app.get("/api/jobs/<job_id>/state")
 def get_state(job_id):
     d = job_dir(job_id)
-    state = json.loads((d / "state.json").read_text())
+    state = read_state(d)
 
-    out = {}
-
+    artifacts = {}
     for p in sorted((d / "steps").iterdir()):
-        entry = {"file": p.name}
+        if p.suffix == ".tmp":
+            continue
         if p.suffix == ".json":
-            entry["kind"] = "data"
-            entry["data"] = json.loads(p.read_text()) # parsed text
+            artifacts[p.stem] ={
+                "kind": "data",
+                "file": p.name,
+                "data": json.loads(p.read_text()),
+            }
         else:
-            entry["kind"] = "image"
-            entry["url"] = f"/api/jobs/{job_id}/steps/{p.name}" # returns as a img URL
-        out[p.stem] = entry
+            artifacts[p.stem] = {
+                "kind": "image",
+                "file": p.name,
+                "url": f"/api/jobs/{job_id}/steps/{p.name}",
+            }
 
-    state["artifacts"] = out
+    state["artifacts"] = artifacts
     return state
-
 
 @app.get("/api/jobs/<job_id>/steps/<name>")
 def get_step_file(job_id, name):
     return send_from_directory(job_dir(job_id) / "steps", name, max_age=0, conditional=True)
+
+@app.get("/api/jobs/<job_id>/sources/<name>")
+def get_source_file(job_id, name):
+    return send_from_directory(job_dir(job_id) / "sources", name)
 
 # ======= MAIN ROUTES =============
 
@@ -71,28 +140,45 @@ def index():
 @app.post("/api/jobs/<job_id>/spritesheet")
 def build_sprite_sheet_call(job_id):
     d = job_dir(job_id) 
+    invalidate_from(d, "spritesheet")
 
     images = {}
+    saved = read_state(d).get("sources", {})
+
     for pos in ("front", "back", "left", "right"):
         f = request.files.get(pos)
         if f is None:
             images[pos] = False
             continue
-        images[pos] = f.read()
+
+        data = f.read()
+        ext = Path(f.filename or "").suffix.lower() or ".png"
+        src = d / "sources" / f"{pos}{ext}"
+        src.write_bytes(data)
+        saved[pos] = src.name
+        images[pos] = data
+
+
+    # Checks if there is three images 
+    if sum(1 for v in images.values() if v) < MIN_IMAGES:
+        return jsonify({
+            "status": "error",
+            "message": f"need at least {MIN_IMAGES} images",
+        }), 400
 
     try:
         sprite_sheet = build_sprite_sheet(images)
-        out = d / "steps" / "01_sheet.png" # Save spritesheet
-        cv.imwrite(str(out), sprite_sheet)
-
-        # Mark the step 1 as finished
-        state = json.loads((d / "state.json").read_text())
-        state["step"] = 1
-        state["done"].append("spritesheet")
-        (d / "state.json").write_text(json.dumps(state))
-
-        return {"status": "success", "step": 1, "preview": f"/api/jobs/{job_id}/steps/01_sheet.png"}
 
     except Exception as e:
-        return jsonify({"status": "error", "message": f"{e}"})
-            
+        app.logger.exception("build_sprite_sheet failed")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+    save_image(d, "spritesheet", sprite_sheet)
+    advance(d, "spritesheet", sources=saved)
+
+    return {
+        "status": "success",
+        "step": "spritesheet",
+        "preview": f"/api/jobs/{job_id}/steps/spritesheet.png",
+    }
+

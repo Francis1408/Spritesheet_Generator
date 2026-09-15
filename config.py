@@ -6,3 +6,9 @@ SPRITE_POS = {
     "left" :  (0, 256),
     "right":  (256, 256)
 }
+PIPELINE = [
+    {"name": "spritesheet", "label": "Build sheet",      "needsFiles": True},
+    {"name": "captioner",   "label": "Generate caption", "needsFiles": False},
+    {"name": "diffusion",   "label": "Generate image",   "needsFiles": False},
+]
+MIN_IMAGES = 3

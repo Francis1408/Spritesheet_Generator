@@ -1,47 +1,40 @@
-const PIPELINE = [
-    { name: "spritesheet", label: "Build sheet", needsFiles: true},
-    { name: "captioner",   label: "Generate caption"},
-    { name: "diffusion",   label: "Generate image"}
-]
+// ====== STATE ======
+let PIPELINE = [];      // fetched from the server
+let job = null;         // { jobId, done, sources, artifacts }
+let rebuildFrom = null; // forces the next run back to an earlier step
+let MIN_IMAGES = null;
 
-// ====== CACHE VARIABLES ======
-let jobId;
+const RENDERERS = {
+    spritesheet: renderSpriteSheet,
+    captioner:   renderCaptioner,
+    diffusion:   renderDiffusion
+}
 
 // ====== ELEMENTS ========
 const dropzones = document.querySelectorAll(".dropzone");
 const runButtonEl = document.getElementById('run-button');
-const image = document.getElementById('drag-img');
+const errorEl = document.getElementById('error');
 
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => e.preventDefault());
 
-function enableExecution() {
 
-    let dropzones_filled = 0;
-    // Check if three positions are filled
-    dropzones.forEach(dropzone => {
-        if(dropzone.querySelector('img')) dropzones_filled++;
-    })
-
-    if (dropzones_filled >= 3) runButtonEl.disabled = false;
-    else runButtonEl.disabled = true;
-}
 
 // ========= ELEMENTS EVENTS =============
 dropzones.forEach(zone => {
-    // 2. Drag Over: Necessary to allow dropping
+    // 1. Drag Over: Necessary to allow dropping
     zone.addEventListener('dragover', (e) => {
         e.preventDefault(); 
         e.dataTransfer.dropEffect = 'copy';
         zone.classList.add('hover');
     });
 
-    // 3. Drag Leave: Visual cleanup when moving away
+    // 2. Drag Leave: Visual cleanup when moving away
     zone.addEventListener('dragleave', (e) => {
         if (!zone.contains(e.relatedTarget)) zone.classList.remove('hover');
     });
 
-    // 4. Drop: Move the image element to the new zone
+    // 3. Drop: Move the image element to the new zone
     zone.addEventListener('drop', (e) => {
         e.preventDefault();
         zone.classList.remove('hover');
@@ -50,7 +43,7 @@ dropzones.forEach(zone => {
         if (!file) return;
 
         if (!file.type.startsWith('image/')) {
-            console.warn('Not an image:', file.type);
+            showError(`${file.type || 'that file'} is not an image`);
             return;
         }
         
@@ -61,7 +54,7 @@ dropzones.forEach(zone => {
         // Clear the current image if exists
         const currentImg = zone.querySelector('img')
         if (currentImg) {
-            URL.revokeObjectURL(currentImg.src);
+            if (currentImg.src.startsWith('blob:')) URL.revokeObjectURL(currentImg.src);
             currentImg.remove();
         }
 
@@ -70,30 +63,60 @@ dropzones.forEach(zone => {
         img.draggable = true;
         img._file = file; // Keep the image bytes
         img.onload = () => URL.revokeObjectURL(img.src);
-        
         zone.appendChild(img);
 
-        enableExecution();
+        // Swapping a source after the sheet is built means the sheet is stale.
+        if (job?.done.includes('spritesheet')) rebuildFrom = 'spritesheet';
+
+        clearError();
+        updateRunButton();
     });
 });
 
 runButtonEl.addEventListener('click', async () => {
-    
-    const form = new FormData();
-    // ----- 1. Build the Spritesheet -------
-    // 1.1 Build content
-    dropzones.forEach(dropzone => {
-        const posSectionEl = dropzone.querySelector('img');
-        if (posSectionEl._file) form.append(dropzone.id, posSectionEl._file, posSectionEl._file.name)
-    })
-    await fetch('/api/save/build_spritesheet', {
-        method: "POST",
-        body: form
-    });
+
+    // Retrieves the last step executed
+    const step = nextStep(job);
+    if (!step) return;
+
+    runButtonEl.disabled = true;
+    runButtonEl.textContent = 'Working…';
+    clearError();
+
+    try {
+        const body = step.needsFiles ? collectDropZoneFiles() : undefined
+        console.log(body)
+        const res = await fetch(`/api/jobs/${job.jobId}/${step.name}`, {method: 'POST', body});
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || data.status !== 'success') {
+            throw new Error(data.message || `${step.label} failed (${res.status})`);
+        }
+
+        const fresh = await resume();
+        if (!fresh) throw new Error('lost track of this job — reload the page');
+
+        job = fresh;
+        rebuildFrom = null;
+        render();
+
+    } catch (e) {
+        showError(e.message);
+        updateRunButton();
+    }
 
 })
 // ===================================
 // ======= BACKEND COM ===============
+
+function nextStep() {
+
+  if (rebuildFrom) return PIPELINE.find(s => s.name === rebuildFrom) ?? null;
+  const done = new Set(job?.done ?? []);
+  return PIPELINE.find(s => !done.has(s.name)) ?? null;
+
+}
+
 async function ensureJobData() {
 
     const resumed = await resume()
@@ -109,6 +132,7 @@ async function ensureJobData() {
 
 }
 
+// Get the current step state of the run
 async function resume() {
 
     const jobId =  localStorage.getItem('jobId'); 
@@ -124,7 +148,123 @@ async function resume() {
     return { jobId, ...(await res.json()) };
 }
 
-// ====== ON PAGE LOAD =====
-jobId, jobData = await ensureJobData()
+// ====== UTILS ===========
+function collectDropZoneFiles() {
 
-enableExecution()
+    const form = new FormData();
+
+    dropzones.forEach(dropzone => {
+        const posSectionEl = dropzone.querySelector('img');
+        if (posSectionEl?._file) form.append(dropzone.id, posSectionEl._file, posSectionEl._file.name)
+    })
+
+    return form;
+}
+
+function filledZones() {
+  return [...dropzones].filter(z => z.querySelector('img')).length;
+}
+
+function showError(message) {
+  if (errorEl) errorEl.textContent = message;
+  else alert(message);
+}
+
+function clearError() {
+  if (errorEl) errorEl.textContent = '';
+}
+
+// ======= RENDERING FUNCTIONS ===============
+
+function updateRunButton() {
+  const step = nextStep();
+
+  if (!step) {
+    runButtonEl.textContent = 'Done';
+    runButtonEl.disabled = true;
+    delete runButtonEl.dataset.step;
+    return;
+  }
+
+  runButtonEl.textContent = step.label;
+  runButtonEl.dataset.step = step.name;
+  // Only the upload step depends on how many zones are filled.
+  runButtonEl.disabled = step.needsFiles && filledZones() < MIN_IMAGES;
+}
+
+
+function restoreSources() {
+  for (const [pos, file] of Object.entries(job.sources ?? {})) {
+    const zone = document.getElementById(pos);
+    if (!zone || zone.querySelector('img')) continue;
+
+    zone.querySelector('p')?.remove();
+
+    const img = document.createElement('img');
+    img.src = `/api/jobs/${job.jobId}/sources/${file}?t=${Date.now()}`;
+    img.draggable = true;
+    zone.appendChild(img);
+  }
+}
+
+
+// Updates the front-end vision
+function render() {
+
+    const done = new Set(job.done)
+    const next = nextStep(job);
+    
+    restoreSources();
+
+    for (const step of PIPELINE) {
+        
+        const el = document.querySelector(`[data-step="${step.name}"]`);
+        if (!el) continue
+
+        const status = done.has(step.name) ? 'done'
+                 : next?.name === step.name ? 'active'
+                 : 'locked';
+
+        el.classList.toggle('done',   status === 'done');
+        el.classList.toggle('active', status === 'active');
+        el.classList.toggle('locked', status === 'locked');
+
+        RENDERERS[step.name]?.(el, job.artifacts?.[step.name], status);
+    }
+
+    updateRunButton()
+}
+
+// STEP 1 RENDERER
+function renderSpriteSheet(el, artifact, status) {
+
+    const output = document.getElementById('output')
+    if(artifact?.url) {
+        const img = document.createElement('img');
+        img.src = `${artifact.url}?t=${Date.now()}`;
+        output.appendChild(img);
+    }
+
+    dropzones.forEach(z => z.classList.toggle('frozen', status === 'done'));
+    console.log(el)
+    console.log(artifact)
+}
+
+function renderCaptioner(el, artifact, status) {}
+
+function renderDiffusion(el, artifact) {}
+
+
+// ====== ON PAGE LOAD ======
+async function init() {
+  try {
+    PIPELINE = await (await fetch('/api/pipeline')).json();
+    MIN_IMAGES = (await (await fetch('/api/minimages')).json()).value;
+    job = await ensureJobData();
+    render();
+  } catch (e) {
+    showError(e.message);
+  }
+}
+
+init();

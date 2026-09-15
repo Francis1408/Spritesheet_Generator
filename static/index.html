@@ -8,7 +8,7 @@
 </head>
 <body>
 
-    <div class="image-area">
+    <section class="image-area" data-step="spritesheet">
         <div class="image-row">
             <p>Front</p>
             <div class="dropzone" id="front">
@@ -36,15 +36,22 @@
                 <p>Drop here</p>
             </div>
         </div>
-    </div>
+    </section>
 
-    <div class="captioner-area">
+    <section class="captioner-area" data-step="captioner">
         <button id="run-button">Run</button>
         <textarea id="caption-text" rows="10"></textarea>
-    </div>
+        <div class="image-row">
+            <p>Right</p>
+            <div class="dropzone" id="output">
+                <p>Output</p>
+            </div>
+        </div>
+        <p id="error">NORMAL</p>
+    </section>
 
 
-    <div class="diffusion-area"></div>
+    <section class="diffusion-area" data-step="diffusion"></section>
     
     <script src="app.js"></script>
 </body>
