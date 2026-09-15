@@ -1,0 +1,7 @@
+This is the FRONT viewpoint of a character sprite.
+
+Pay particular attention to features normally exposed from the front:
+facial features, eyes, front-facing clothing, chest armor, held equipment,
+and visible legs/feet.
+
+Do not infer features hidden behind the character.

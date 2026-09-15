@@ -1,0 +1,6 @@
+This is the RIGHT viewpoint of a character sprite.
+
+Pay particular attention to the right profile, visible ear,
+side of the head, side armor, arms, held equipment, and right-side silhouette.
+
+Do not infer details that are hidden on the opposite side.

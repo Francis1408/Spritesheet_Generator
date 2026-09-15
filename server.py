@@ -2,6 +2,7 @@ from pathlib import Path
 from flask import Flask, jsonify, request, send_file, abort, send_from_directory
 from utils.spritesheet_builder import build_sprite_sheet
 from config import SPRITE_POS, MIN_IMAGES, PIPELINE
+from utils.caption_generator import CaptionGenerator
 import uuid, json
 import cv2 as cv
 
@@ -143,12 +144,15 @@ def build_sprite_sheet_call(job_id):
     invalidate_from(d, "spritesheet")
 
     images = {}
+    available_images = {}
     saved = read_state(d).get("sources", {})
 
     for pos in ("front", "back", "left", "right"):
         f = request.files.get(pos)
+        available_images[pos] = True
         if f is None:
             images[pos] = False
+            available_images[pos] = False
             continue
 
         data = f.read()
@@ -174,6 +178,7 @@ def build_sprite_sheet_call(job_id):
         return jsonify({"status": "error", "message": str(e)}), 500
 
     save_image(d, "spritesheet", sprite_sheet)
+    save_data(d, "spritesheet", available_images)
     advance(d, "spritesheet", sources=saved)
 
     return {
@@ -181,4 +186,36 @@ def build_sprite_sheet_call(job_id):
         "step": "spritesheet",
         "preview": f"/api/jobs/{job_id}/steps/spritesheet.png",
     }
+
+@app.post("/api/jobs/<job_id>/captioner_vlm")
+def captioner_call(job_id):
+    
+    d = job_dir(job_id)
+    sheet_path = require_artifact(d, 'spritesheet', 'png')
+    available_pos_path = require_artifact(d, 'spritesheet', 'json')
+    with open(available_pos_path) as f:
+        available_pos = json.load(f)
+
+    invalidate_from(d, "captioner_vlm")
+
+    # Declare and run funtion passing the image path as paratemeter
+    generator = CaptionGenerator()
+
+    try:
+        vlm_evidence = generator.run_vlm_phase(sheet_path, available_pos)
+
+    except Exception as e:
+        app.logger.exception("VLM run failed")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+    # Save evidence
+    save_data(d, "captioner_vlm", vlm_evidence)
+    advance(d, "captioner_vlm")
+
+    return {
+        "status": "success",
+        "step": "captioner_vlm",
+        "data": vlm_evidence,
+    }
+
 

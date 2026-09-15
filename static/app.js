@@ -5,9 +5,10 @@ let rebuildFrom = null; // forces the next run back to an earlier step
 let MIN_IMAGES = null;
 
 const RENDERERS = {
-    spritesheet: renderSpriteSheet,
-    captioner:   renderCaptioner,
-    diffusion:   renderDiffusion
+    spritesheet:     renderSpriteSheet,
+    captioner_vlm:   renderCaptionerVLM,
+    captioner_llm:   renderCaptionerLLM,
+    diffusion:       renderDiffusion
 }
 
 // ====== ELEMENTS ========
@@ -85,7 +86,7 @@ runButtonEl.addEventListener('click', async () => {
 
     try {
         const body = step.needsFiles ? collectDropZoneFiles() : undefined
-        console.log(body)
+      
         const res = await fetch(`/api/jobs/${job.jobId}/${step.name}`, {method: 'POST', body});
         const data = await res.json().catch(() => ({}));
 
@@ -174,6 +175,36 @@ function clearError() {
   if (errorEl) errorEl.textContent = '';
 }
 
+function makePreview(key, value) {
+
+    const card = document.createElement('article');
+    card.className = 'preview';
+    card.tabIndex = 0;
+
+    const title = document.createElement('h4');
+    title.textContent = key;
+
+    const body = document.createElement('div');
+    body.className = 'preview-body';
+    body.textContent = toText(value);
+
+    card.append(title, body);
+    card.addEventListener('click', () => card.classList.toggle('pinned'));
+    return card;
+}
+
+function toText(value) {
+
+    if (typeof value === 'string') return value;
+    if (Array.isArray(value)) return value.map(toText).join('\n\n');
+    if (value && typeof value === 'object') {
+        return Object.entries(value)
+            .map(([k, v]) => `${k}\n${toText(v)}`) 
+            .join('\n\n')
+    }
+    return String(value);
+}
+
 // ======= RENDERING FUNCTIONS ===============
 
 function updateRunButton() {
@@ -238,6 +269,7 @@ function render() {
 // STEP 1 RENDERER
 function renderSpriteSheet(el, artifact, status) {
 
+    
     const output = document.getElementById('output')
     if(artifact?.url) {
         const img = document.createElement('img');
@@ -246,11 +278,23 @@ function renderSpriteSheet(el, artifact, status) {
     }
 
     dropzones.forEach(z => z.classList.toggle('frozen', status === 'done'));
-    console.log(el)
-    console.log(artifact)
 }
 
-function renderCaptioner(el, artifact, status) {}
+// STEP 2 RENDERER
+function renderCaptionerVLM(el, artifact) {
+
+    const host = el.querySelector('.previews');
+    host.innerHTML = '';
+    if(!artifact?.data) return;
+
+    for (const [key, value] of Object.entries(artifact.data)) {
+        host.appendChild(makePreview(key, value))
+
+    }
+
+}
+
+function renderCaptionerLLM(el, artifact, status) {}
 
 function renderDiffusion(el, artifact) {}
 

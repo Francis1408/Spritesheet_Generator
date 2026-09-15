@@ -1,0 +1,88 @@
+{
+  "type": "object",
+  "properties": {
+    "character_type": {
+      "type": "object",
+      "properties": {
+        "analysis": { "type": "string" },
+        "conclusion": { "type": "string" }
+      },
+      "required": ["analysis", "conclusion"],
+      "additionalProperties": false
+    },
+    "skin_tone": {
+      "type": "object",
+      "properties": {
+        "analysis": { "type": "string" },
+        "conclusion": { "type": "string" }
+      },
+      "required": ["analysis", "conclusion"],
+      "additionalProperties": false
+    },
+    "body_features": {
+      "type": "object",
+      "properties": {
+        "analysis": { "type": "string" },
+        "conclusion": { "type": "string" }
+      },
+      "required": ["analysis", "conclusion"],
+      "additionalProperties": false
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "analysis": { "type": "string" },
+        "conclusion": { "type": "string" }
+      },
+      "required": ["analysis", "conclusion"],
+      "additionalProperties": false
+    },
+    "extra_armor": {
+      "type": "object",
+      "properties": {
+        "analysis": { "type": "string" },
+        "conclusion": { "type": "string" }
+      },
+      "required": ["analysis", "conclusion"],
+      "additionalProperties": false
+    },
+    "head": {
+      "type": "object",
+      "properties": {
+        "analysis": { "type": "string" },
+        "conclusion": { "type": "string" }
+      },
+      "required": ["analysis", "conclusion"],
+      "additionalProperties": false
+    },
+    "eyes": {
+      "type": "object",
+      "properties": {
+        "analysis": { "type": "string" },
+        "conclusion": { "type": "string" }
+      },
+      "required": ["analysis", "conclusion"],
+      "additionalProperties": false
+    },
+    "lower": {
+      "type": "object",
+      "properties": {
+        "analysis": { "type": "string" },
+        "conclusion": { "type": "string" }
+      },
+      "required": ["analysis", "conclusion"],
+      "additionalProperties": false
+    },
+    "equipment": {
+      "type": "object",
+      "properties": {
+        "analysis": { "type": "string" },
+        "conclusion": { "type": "string" }
+      },
+      "required": ["analysis", "conclusion"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["character_type", "skin_tone", "body_features", "body", "extra_armor", "head", "eyes", "lower", "equipment"],
+  "additionalProperties": false
+}

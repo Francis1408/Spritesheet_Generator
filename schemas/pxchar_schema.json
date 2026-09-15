@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "properties": {
+    "character_type": { "type": "string" },
+    "skin_tone": { "type": "string" },
+    "body_features": { "type": "array", "items": { "type": "string" } },
+    "body": { "type": "string" },
+    "extra_armor": { "type": "array", "items": { "type": "string" } },
+    "head": { "type": "string" },
+    "eyes": { "type": "string" },
+    "lower": { "type": "string" },
+    "equipment": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["character_type", "skin_tone", "body_features", "body", "extra_armor", "head", "eyes", "lower", "equipment"],
+  "additionalProperties": false
+}

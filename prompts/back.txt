@@ -1,0 +1,6 @@
+This is the BACK viewpoint of a character sprite.
+
+Pay particular attention to the back of the head, rear clothing,
+back armor, capes, backpacks, straps, and equipment visible from behind.
+
+Do not infer facial features or front-facing details that cannot be seen.

@@ -54,3 +54,55 @@ img {
 img:active {
     cursor: grabbing;
 }
+
+.previews {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: .75rem;
+}
+
+.preview {
+  position: relative;
+  padding: .6rem;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.preview h4 {
+  margin: 0 0 .4rem;
+  font-size: .8rem;
+  font-weight: 600;
+}
+
+.preview-body {
+  font-size: .8rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.preview:hover,
+.preview:focus-visible,
+.preview.pinned { z-index: 10; }
+
+.preview:hover .preview-body,
+.preview:focus-visible .preview-body,
+.preview.pinned .preview-body {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  width: max(100%, 340px);
+  max-height: 50vh;
+  overflow-y: auto;
+  display: block;
+  padding: .7rem;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+}

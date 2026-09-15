@@ -1,0 +1,117 @@
+{
+  "type": "object",
+  "properties": {
+    "position": {
+      "type": "string",
+      "enum": ["front", "back", "left", "right", "full_sheet"]
+    },
+    "observations": {
+      "type": "object",
+      "properties": {
+        "silhouette": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "string" },
+            "visibility": { "type": "string", "enum": ["VISIBLE", "NOT_VISIBLE", "UNKNOWN", "EMPTY"] },
+            "evidence_quality": { "type": "string", "enum": ["clear", "small_but_visible", "inferred", "guess", "not_applicable"] },
+            "evidence": { "type": "string" }
+          },
+          "required": ["value", "visibility", "evidence_quality", "evidence"],
+          "additionalProperties": false
+        },
+        "skin_tone": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "string" },
+            "visibility": { "type": "string", "enum": ["VISIBLE", "NOT_VISIBLE", "UNKNOWN", "EMPTY"] },
+            "evidence_quality": { "type": "string", "enum": ["clear", "small_but_visible", "inferred", "guess", "not_applicable"] },
+            "evidence": { "type": "string" }
+          },
+          "required": ["value", "visibility", "evidence_quality", "evidence"],
+          "additionalProperties": false
+        },
+        "head": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "string" },
+            "visibility": { "type": "string", "enum": ["VISIBLE", "NOT_VISIBLE", "UNKNOWN", "EMPTY"] },
+            "evidence_quality": { "type": "string", "enum": ["clear", "small_but_visible", "inferred", "guess", "not_applicable"] },
+            "evidence": { "type": "string" }
+          },
+          "required": ["value", "visibility", "evidence_quality", "evidence"],
+          "additionalProperties": false
+        },
+        "eyes": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "string" },
+            "visibility": { "type": "string", "enum": ["VISIBLE", "NOT_VISIBLE", "UNKNOWN", "EMPTY"] },
+            "evidence_quality": { "type": "string", "enum": ["clear", "small_but_visible", "inferred", "guess", "not_applicable"] },
+            "evidence": { "type": "string" }
+          },
+          "required": ["value", "visibility", "evidence_quality", "evidence"],
+          "additionalProperties": false
+        },
+        "body_features": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "array", "items": { "type": "string" } },
+            "visibility": { "type": "string", "enum": ["VISIBLE", "NOT_VISIBLE", "UNKNOWN", "EMPTY"] },
+            "evidence_quality": { "type": "string", "enum": ["clear", "small_but_visible", "inferred", "guess", "not_applicable"] },
+            "evidence": { "type": "string" }
+          },
+          "required": ["value", "visibility", "evidence_quality", "evidence"],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "string" },
+            "visibility": { "type": "string", "enum": ["VISIBLE", "NOT_VISIBLE", "UNKNOWN", "EMPTY"] },
+            "evidence_quality": { "type": "string", "enum": ["clear", "small_but_visible", "inferred", "guess", "not_applicable"] },
+            "evidence": { "type": "string" }
+          },
+          "required": ["value", "visibility", "evidence_quality", "evidence"],
+          "additionalProperties": false
+        },
+        "extra_armor": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "array", "items": { "type": "string" } },
+            "visibility": { "type": "string", "enum": ["VISIBLE", "NOT_VISIBLE", "UNKNOWN", "EMPTY"] },
+            "evidence_quality": { "type": "string", "enum": ["clear", "small_but_visible", "inferred", "guess", "not_applicable"] },
+            "evidence": { "type": "string" }
+          },
+          "required": ["value", "visibility", "evidence_quality", "evidence"],
+          "additionalProperties": false
+        },
+        "lower": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "string" },
+            "visibility": { "type": "string", "enum": ["VISIBLE", "NOT_VISIBLE", "UNKNOWN", "EMPTY"] },
+            "evidence_quality": { "type": "string", "enum": ["clear", "small_but_visible", "inferred", "guess", "not_applicable"] },
+            "evidence": { "type": "string" }
+          },
+          "required": ["value", "visibility", "evidence_quality", "evidence"],
+          "additionalProperties": false
+        },
+        "equipment": {
+          "type": "object",
+          "properties": {
+            "value": { "type": "array", "items": { "type": "string" } },
+            "visibility": { "type": "string", "enum": ["VISIBLE", "NOT_VISIBLE", "UNKNOWN", "EMPTY"] },
+            "evidence_quality": { "type": "string", "enum": ["clear", "small_but_visible", "inferred", "guess", "not_applicable"] },
+            "evidence": { "type": "string" }
+          },
+          "required": ["value", "visibility", "evidence_quality", "evidence"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["silhouette", "skin_tone", "head", "eyes", "body_features", "body", "extra_armor", "lower", "equipment"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["position", "observations"],
+  "additionalProperties": false
+}

@@ -2,12 +2,7 @@ import cv2 as cv
 from pathlib import Path
 import numpy as np
 import sys
-from config import SPRITE_POS
-
-DATASET_PATH = Path("../../Dataset/train")
-OUTPUT_PATH = Path("../../Dataset/spriteSheet")
-SPRITE_SIZE = (512, 512)
-NEW_DIMENSIONS = (256, 256)
+from config import SPRITE_POS, SPRITE_SIZE, NEW_DIMENSIONS
 
 
 def showProgress(current, total, message=None, bar_length = 45):
