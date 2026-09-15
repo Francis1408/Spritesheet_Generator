@@ -15,6 +15,7 @@ const RENDERERS = {
 const dropzones = document.querySelectorAll(".dropzone");
 const runButtonEl = document.getElementById('run-button');
 const errorEl = document.getElementById('error');
+const restartButtonEl = document.getElementById('restart-button');
 
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => e.preventDefault());
@@ -70,7 +71,7 @@ dropzones.forEach(zone => {
         if (job?.done.includes('spritesheet')) rebuildFrom = 'spritesheet';
 
         clearError();
-        updateRunButton();
+        updateButtons();
     });
 });
 
@@ -81,6 +82,7 @@ runButtonEl.addEventListener('click', async () => {
     if (!step) return;
 
     runButtonEl.disabled = true;
+    restartButtonEl.disabled = true;
     runButtonEl.textContent = 'Working…';
     clearError();
 
@@ -103,9 +105,13 @@ runButtonEl.addEventListener('click', async () => {
 
     } catch (e) {
         showError(e.message);
-        updateRunButton();
+        updateButtons();
     }
 
+})
+
+restartButtonEl.addEventListener('click', async () => {
+    restart()
 })
 // ===================================
 // ======= BACKEND COM ===============
@@ -147,6 +153,16 @@ async function resume() {
         return null;
     }
     return { jobId, ...(await res.json()) };
+}
+
+async function restart() {
+    const res = await fetch(`/api/jobs/${job.jobId}/reset`, { method: 'POST' });
+    if(!res?.status === "success") {
+        showError('Error: Couldnt restart the pipeline')
+    }
+    job = await resume();
+    rebuildFrom = null;
+    render()
 }
 
 // ====== UTILS ===========
@@ -207,8 +223,10 @@ function toText(value) {
 
 // ======= RENDERING FUNCTIONS ===============
 
-function updateRunButton() {
+function updateButtons() {
   const step = nextStep();
+
+  restartButtonEl.disabled = false;
 
   if (!step) {
     runButtonEl.textContent = 'Done';
@@ -263,7 +281,7 @@ function render() {
         RENDERERS[step.name]?.(el, job.artifacts?.[step.name], status);
     }
 
-    updateRunButton()
+    updateButtons()
 }
 
 // STEP 1 RENDERER

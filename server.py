@@ -77,6 +77,7 @@ def require_artifact(d, name, ext):
     if not p.exists():
         abort(409, f"run the {name} step first")
     return p
+    
 
 
 # ======= JOB ROUTES ===========
@@ -129,6 +130,12 @@ def get_step_file(job_id, name):
 @app.get("/api/jobs/<job_id>/sources/<name>")
 def get_source_file(job_id, name):
     return send_from_directory(job_dir(job_id) / "sources", name)
+
+@app.post("/api/jobs/<job_id>/reset")
+def reset_job(job_id):
+    d = job_dir(job_id)
+    invalidate_from(d, PIPELINE[0]['name'])
+    return {"status": "success"}
 
 # ======= MAIN ROUTES =============
 
