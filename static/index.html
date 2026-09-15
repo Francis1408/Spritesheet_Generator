@@ -44,8 +44,10 @@
             <div class="previews"></div>
         </section>
 
-        <button id="run-button">Run</button>
-        <textarea id="caption-text" rows="10"></textarea>
+        <section data-step="captioner_llm">
+            <textarea class="caption-text" rows="10"></textarea>
+        </section>
+
         <div class="image-row">
             <p>Right</p>
             <div class="dropzone" id="output">
@@ -53,6 +55,8 @@
             </div>
         </div>
         <p id="error">NORMAL</p>
+        <button id="run-button">Run</button>
+
     </section>
 
 

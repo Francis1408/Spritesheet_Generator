@@ -269,8 +269,16 @@ function render() {
 // STEP 1 RENDERER
 function renderSpriteSheet(el, artifact, status) {
 
-    
+
     const output = document.getElementById('output')
+
+    // Clear current image
+    const currentImg = output.querySelector('img')
+    if (currentImg) {
+        if (currentImg.src.startsWith('blob:')) URL.revokeObjectURL(currentImg.src);
+        currentImg.remove();
+    }
+
     if(artifact?.url) {
         const img = document.createElement('img');
         img.src = `${artifact.url}?t=${Date.now()}`;
@@ -281,7 +289,7 @@ function renderSpriteSheet(el, artifact, status) {
 }
 
 // STEP 2 RENDERER
-function renderCaptionerVLM(el, artifact) {
+function renderCaptionerVLM(el, artifact, status) {
 
     const host = el.querySelector('.previews');
     host.innerHTML = '';
@@ -294,7 +302,15 @@ function renderCaptionerVLM(el, artifact) {
 
 }
 
-function renderCaptionerLLM(el, artifact, status) {}
+function renderCaptionerLLM(el, artifact, status) {
+
+    const host = el.querySelector('.caption-text');
+    host.value = '';
+    if(!artifact?.data) return;
+
+    host.value = artifact.data
+
+}
 
 function renderDiffusion(el, artifact) {}
 

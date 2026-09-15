@@ -60,36 +60,20 @@ class CaptionGenerator():
             if unload_after:
                 unload_model(VLM_MODEL)
 
-    def run_llm_phase(self, batch_size, process_all, unload_after=True):
+    def run_llm_phase(self, image_path, evidences, missing_views, unload_after=True):
         """Phase 2: LLM synthesis/compression only. Run this after phase 1."""
+
         model_prompter = modelPrompterSingleton
-        captions = self.load_captions()
-
-        pending = self.get_pending_images(captions, step="llm")
-        if not pending:
-            print("Nothing to do — no evidence is waiting for caption synthesis.")
-            return
-
-        batch = pending if process_all else pending[:batch_size]
-        print(f"Synthesizing captions for {len(batch)} image(s) "
-              f"({len(pending)} remaining before this run)...")
-
+        
         try:
-            for i, img_path in enumerate(batch, start=1):
-                key = img_path.stem
-                print(f"[{i}/{len(batch)}] Captioning: {img_path.name}...")
-                try:
-                    caption = model_prompter.generate_caption_from_evidence(key)
-                except Exception as e:
-                    print(f"  Failed on {img_path.name}: {e}")
-                    continue
-
-                captions[key] = {
-                    'caption': caption,
-                    'approved': False,
-                    'score': None
-                }
-                self.save_captions(captions)
+            
+            key = image_path.stem
+            print(f"Captioning: {image_path.name}...")
+            try:
+                return model_prompter.generate_caption_from_evidence(key, evidences, missing_views)
+            except Exception as e:
+                raise e
+        
         finally:
             if unload_after:
                 unload_model(LLM_MODEL)

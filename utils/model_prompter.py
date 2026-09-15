@@ -256,30 +256,23 @@ class ModelPrompter():
         }
 
 
-    def generate_caption_from_evidence(self, id):
+    def generate_caption_from_evidence(self, id, evidences, missing_views):
    
-        folder_path = GENERATOR_OUTPUT_FOLDER / str(id)
- 
-        def load(name):
-            with open(folder_path / name, "r", encoding="utf-8") as f:
-                return json.load(f)
- 
-        position_observations = load("positions.json")
-        full_observation = load("fullview.json")
-        profile = load("color_profile.json")
-        meta = load("meta.json")
- 
+        position_observations = evidences['positions']
+        full_observation = evidences['fullsheet']
+        profile = evidences['color']
+        
         color_hint = format_color_profile_for_prompt(profile, top_n=12)
- 
+
+        # Synthesis LLM call
         synthesis = self.synthetize_info(
             position_observations, full_observation, color_hint,
-            missing_views=meta.get("views_missing"),
+            missing_views,
         )
-        self.save_json(folder_path / "synthesis.json", synthesis)
- 
+        
+        # Compressed LLM call
         compressed = self.compress_info(synthesis)
-        self.save_json(folder_path / "compressed.json", compressed)
- 
+        
         return self.build_final_caption(compressed)
 
 

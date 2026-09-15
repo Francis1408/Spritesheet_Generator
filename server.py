@@ -188,7 +188,7 @@ def build_sprite_sheet_call(job_id):
     }
 
 @app.post("/api/jobs/<job_id>/captioner_vlm")
-def captioner_call(job_id):
+def captioner_vlm_call(job_id):
     
     d = job_dir(job_id)
     sheet_path = require_artifact(d, 'spritesheet', 'png')
@@ -216,6 +216,55 @@ def captioner_call(job_id):
         "status": "success",
         "step": "captioner_vlm",
         "data": vlm_evidence,
+    }
+
+@app.post("/api/jobs/<job_id>/captioner_llm")
+def captioner_llm_call(job_id):
+
+    d = job_dir(job_id)
+    sheet_path = require_artifact(d, 'spritesheet', 'png')
+
+    available_pos_path = require_artifact(d, 'spritesheet', 'json')
+    with open(available_pos_path) as f:
+        available_pos = json.load(f)
+
+    # Get views missing
+    missing_views = [view for view, available in available_pos.items() if not available]
+
+    vlm_evidence_path = require_artifact(d, 'captioner_vlm', 'json')
+    with open(vlm_evidence_path) as f:
+        vlm_evidence = json.load(f)
+
+    invalidate_from(d, "captioner_llm")
+
+    # Check evidenves integrity
+    keys_to_check = ['positions', 'fullsheet', 'color']
+    for key in keys_to_check:
+        data = vlm_evidence.get(key)
+        if not data:
+            return jsonify({
+                    "status": "error",
+                    "message": f"Evidence {key} is missing",
+                }), 400
+
+    generator = CaptionGenerator()
+
+    try:
+        caption = generator.run_llm_phase(sheet_path, vlm_evidence, missing_views)
+
+
+    except Exception as e:
+        app.logger.exception("LLM run failed")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+    # Save evidence
+    save_data(d, "captioner_llm", {"data": caption})
+    advance(d, "captioner_llm")
+
+    return {
+        "status": "success",
+        "step": "captioner_llm",
+        "data": caption,
     }
 
 
