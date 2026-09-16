@@ -1,6 +1,7 @@
 from pathlib import Path
 from flask import Flask, jsonify, request, send_file, abort, send_from_directory
 from utils.spritesheet_builder import build_sprite_sheet
+from utils.diffusion import run_diffusion
 from config import SPRITE_POS, MIN_IMAGES, PIPELINE
 from utils.caption_generator import CaptionGenerator
 import uuid, json
@@ -274,4 +275,29 @@ def captioner_llm_call(job_id):
         "data": caption,
     }
 
+@app.post("/api/jobs/<job_id>/diffusion")
+def diffusion_call(job_id):
 
+    d = job_dir(job_id)
+    sheet_path = require_artifact(d, 'spritesheet', 'png');
+
+    available_pos_path = require_artifact(d, 'spritesheet', 'json');
+    with open(available_pos_path) as f:
+        available_pos = json.load(f)
+
+    # Get views missing
+    missing_views = [view for view, available in available_pos.items() if not available];
+
+    # Get caption
+    caption = require_artifact(d, 'captioner_llm', 'json');
+
+    invalidate_from(d, "diffusion")
+
+    try:
+        final_crop = run_diffusion()
+
+    except Exception as e:
+        app.logger.exception("Diffusion failed")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+    
