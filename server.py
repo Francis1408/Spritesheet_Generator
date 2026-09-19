@@ -2,10 +2,12 @@ from pathlib import Path
 from flask import Flask, jsonify, request, send_file, abort, send_from_directory
 from utils.spritesheet_builder import build_sprite_sheet
 from utils.diffusion import run_diffusion
-from config import SPRITE_POS, MIN_IMAGES, PIPELINE
+import config
 from utils.caption_generator import CaptionGenerator
 import uuid, json
 import cv2 as cv
+import os
+import re
 
 
 app = Flask(__name__, static_folder="static", static_url_path="")
@@ -43,7 +45,7 @@ def advance(d, name, **extra):
 
 def invalidate_from(d, name):
     """Drop this step and everything after it, so a re-run can't leave stale output."""
-    order = [s["name"] for s in PIPELINE]
+    order = [s["name"] for s in config.PIPELINE]
     stale = order[order.index(name):]
 
     for step in stale:
@@ -79,16 +81,58 @@ def require_artifact(d, name, ext):
         abort(409, f"run the {name} step first")
     return p
     
+def get_source_images(d):
 
+    saved = read_state(d).get("sources", {})
+    images = {}
+    available_images = {}
+    
+    for pos in ("front", "back", "left", "right"):
+        f = request.files.get(pos)
+        available_images[pos] = True
+        if f is None:
+            images[pos] = False
+            available_images[pos] = False
+            continue
+
+        data = f.read()
+        ext = Path(f.filename or "").suffix.lower() or ".png"
+        src = d / "sources" / f"{pos}{ext}"
+        src.write_bytes(data)
+        saved[pos] = src.name
+        images[pos] = data
+
+    return images, available_images, saved
 
 # ======= JOB ROUTES ===========
 @app.get("/api/pipeline")
 def get_pipeline():
-    return jsonify(PIPELINE)
+    return jsonify(config.PIPELINE)
 
 @app.get("/api/minimages")
 def get_minimages():
-    return jsonify(value=MIN_IMAGES)
+    return jsonify(value=config.MIN_IMAGES)
+
+
+@app.route("/api/upscale-options")
+def upscale_options():
+
+    SAFETENSORS_RE = re.compile(r"^x(?P<upscale>\d+(?:\.\d+)?)_lora_weights\.safetensors$", re.I,)
+
+    options = []
+    with os.scandir(config.LORA_PATH) as entries:
+        for entry in entries:
+            if not entry.is_file():
+                continue
+            m = SAFETENSORS_RE.match(entry.name)
+            if m:
+                options.append({
+                    "upscale": float(m.group("upscale")),
+                    "filename": entry.name,
+                })
+    options.sort(key=lambda o: o["upscale"])
+    return jsonify(options)
+
 
 @app.post("/api/jobs")
 def create_job():
@@ -135,7 +179,7 @@ def get_source_file(job_id, name):
 @app.post("/api/jobs/<job_id>/reset")
 def reset_job(job_id):
     d = job_dir(job_id)
-    invalidate_from(d, PIPELINE[0]['name'])
+    invalidate_from(d, config.PIPELINE[0]['name'])
     return {"status": "success"}
 
 # ======= MAIN ROUTES =============
@@ -153,29 +197,13 @@ def build_sprite_sheet_call(job_id):
 
     images = {}
     available_images = {}
-    saved = read_state(d).get("sources", {})
-
-    for pos in ("front", "back", "left", "right"):
-        f = request.files.get(pos)
-        available_images[pos] = True
-        if f is None:
-            images[pos] = False
-            available_images[pos] = False
-            continue
-
-        data = f.read()
-        ext = Path(f.filename or "").suffix.lower() or ".png"
-        src = d / "sources" / f"{pos}{ext}"
-        src.write_bytes(data)
-        saved[pos] = src.name
-        images[pos] = data
-
+    images, available_images, saved = get_source_images(d)
 
     # Checks if there is three images 
-    if sum(1 for v in images.values() if v) < MIN_IMAGES:
+    if sum(1 for v in images.values() if v) < config.MIN_IMAGES:
         return jsonify({
             "status": "error",
-            "message": f"need at least {MIN_IMAGES} images",
+            "message": f"need at least {config.MIN_IMAGES} images",
         }), 400
 
     try:
@@ -279,8 +307,11 @@ def captioner_llm_call(job_id):
 def diffusion_call(job_id):
 
     d = job_dir(job_id)
-    sheet_path = require_artifact(d, 'spritesheet', 'png');
-
+  
+    images = {}
+    available_images = {}
+    images, available_images, _ = get_source_images(d)
+    
     available_pos_path = require_artifact(d, 'spritesheet', 'json');
     with open(available_pos_path) as f:
         available_pos = json.load(f)

@@ -31,7 +31,7 @@ from PIL import Image
 from diffusers import (ControlNetModel, StableDiffusionControlNetPipeline,
                        UniPCMultistepScheduler)
 
-import spritegeom as G
+import utils.spritegeom as G
 from config import SD15, CONTROLNET_INPAINT, SHEET_SIZE, QUAD_SIZE, FLATTEN_BG, LORA_PATH, FP32, DEVICE, STEP, CN_SCALE, GUIDANCE, NUM_SAMPLES, SEED, REDUCE
 
 
@@ -200,8 +200,12 @@ def run_diffusion(image_path, caption, missing_pos):
     # ap.add_argument("--fp32", action="store_true")
     # args = ap.parse_args()
 
-    if G.WINDOW_W is None:
-        raise SystemExit("Geometry not locked. Set spritegeom.py first.")
+    """
+    Generate one missing pose. Returns paths + metrics.
+    Geometry comes from the checkpoint, so 4x and 5x LoRAs both just work.
+    """
+
+    geom = geome
 
 
     # ---- assemble input ----
@@ -253,4 +257,3 @@ def run_diffusion(image_path, caption, missing_pos):
         else:
             print(f"seed {seed}: written")
 
-    print(f"\n-> {out}")

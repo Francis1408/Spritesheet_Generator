@@ -28,7 +28,8 @@ PROMPT_PATH = r"prompts/"
 # ===== DIFFUSION VARIABLES  =======
 SD15 = "stable-diffusion-v1-5/stable-diffusion-v1-5"
 CONTROLNET_INPAINT = "lllyasviel/control_v11p_sd15_inpaint"
-LORA_PATH = "loras/4x4_lora_weights.safetensors"
+LORA_PATH = "loras"
+
 
 # ARGS
 FP32 = False

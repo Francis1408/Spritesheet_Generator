@@ -221,6 +221,28 @@ function toText(value) {
     return String(value);
 }
 
+async function loadUpscaleOptions() {
+
+    const res = await fetch("/api/upscale-options");
+    if (!res.ok) throw new Error(`Failed to load LoRAs: ${res.status}`);
+    
+    const optionContent = await res.json()
+
+    // Dropdown reference
+    const dropdownEl = document.getElementById("options")
+
+    console.log(optionContent)
+
+    optionContent.forEach((option) =>  {
+        const optionTag = document.createElement('option');
+        optionTag.textContent = `${option.upscale}x`;
+        optionTag.value = option.upscale;
+
+        dropdownEl.appendChild(optionTag)
+    })
+    
+}
+
 // ======= RENDERING FUNCTIONS ===============
 
 function updateButtons() {
@@ -339,6 +361,7 @@ async function init() {
     PIPELINE = await (await fetch('/api/pipeline')).json();
     MIN_IMAGES = (await (await fetch('/api/minimages')).json()).value;
     job = await ensureJobData();
+    await loadUpscaleOptions();
     render();
   } catch (e) {
     showError(e.message);
