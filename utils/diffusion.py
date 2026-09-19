@@ -32,7 +32,7 @@ from diffusers import (ControlNetModel, StableDiffusionControlNetPipeline,
                        UniPCMultistepScheduler)
 
 import utils.spritegeom as G
-from config import SD15, CONTROLNET_INPAINT, SHEET_SIZE, QUAD_SIZE, FLATTEN_BG, LORA_PATH, FP32, DEVICE, STEP, CN_SCALE, GUIDANCE, NUM_SAMPLES, SEED, REDUCE
+from config import SD15, DEFAULT_OUTPUT, CONTROLNET_INPAINT, SHEET_SIZE, QUAD_SIZE, FLATTEN_BG, LORA_PATH, FP32, DEVICE, STEP, CN_SCALE, GUIDANCE, NUM_SAMPLES, SEED, REDUCE
 
 
 
@@ -178,82 +178,69 @@ def generate(pipe, sheet, missing, caption, *, steps=30, guidance=7.5,
 
 
 # ==========================================================================
-def run_diffusion(image_path, caption, missing_pos):
-    # ap = argparse.ArgumentParser()
-    # ap.add_argument("--lora", required=True, help="checkpoint dir or .safetensors")
-    # ap.add_argument("--missing", required=True, choices=list(G.POSITIONS))
-    # ap.add_argument("--caption", default=None)
-    # ap.add_argument("--out", default="./generated")
-
-    # ap.add_argument("--sheet", default=None, help="eval mode: complete 512x512 sheet")
-    # for pos in G.POSITIONS:
-    #     ap.add_argument(f"--{pos}", default=None, help=f"real mode: {pos} sprite")
-
-    # ap.add_argument("--steps", type=int, default=30)
-    # ap.add_argument("--guidance", type=float, default=7.5)
-    # ap.add_argument("--cn_scale", type=float, default=1.0)
-    # ap.add_argument("--seed", type=int, default=42)
-    # ap.add_argument("--num_samples", type=int, default=1,
-    #                 help="generate N variants with consecutive seeds")
-    # ap.add_argument("--reduce", default="median", choices=["median", "mean", "mode"])
-    # ap.add_argument("--device", default="cuda")
-    # ap.add_argument("--fp32", action="store_true")
-    # args = ap.parse_args()
-
+def run_diffusion(image_crops, caption, missing_pos, parameters):
+  
     """
     Generate one missing pose. Returns paths + metrics.
     Geometry comes from the checkpoint, so 4x and 5x LoRAs both just work.
     """
 
-    geom = geome
+    G.apply_geometry(64, 64, parameters.upscale)
+    truth, clipped = G.build_sprite_sheet_by_upscale(image_crops)
+    if truth is None or clipped:
+        raise ValueError(f"Upscale {parameters.upscale} clipped the crops. Please try a lower upscale")
 
-
-    # ---- assemble input ----
-    truth = None
-    if image_path:
-        truth = Image.open(image_path).convert("RGB")
-        if truth.size != (SHEET_SIZE, SHEET_SIZE):
-            raise SystemExit(f"sheet is {truth.size}, expected " f"{SHEET_SIZE}x{SHEET_SIZE}")
-        sheet = truth.copy()
-        # blank the missing quadrant so no ground-truth pixel can leak into
-        # the palette or the composite
-        x0, y0, x1, y1 = quad_box(missing_pos)
-        sheet.paste(Image.new("RGB", (QUAD_SIZE, QUAD_SIZE), FLATTEN_BG), (x0, y0))
+    if not parameters.get("output"):
+        out_dir = Path(DEFAULT_OUTPUT)
+    else:
+        out_dir = Path(parameters.get("output"))
         
+    out_dir.mkdir(parents=True, exist_ok=True)
 
+    # blank the target quadrant so no source pixel leaks into hint or palette
+    sheet = truth.copy()
+    x0, y0, x1, y1 = quad_box(missing_pos)
+    sheet.paste(Image.new("RGB", (G.QUAD_SIZE, G.QUAD_SIZE), G.FLATTEN_BG), (x0, y0))
+        
+    # Get lora_path
+    lora_path = Path(LORA_PATH) / f"x{parameters.upscale}_lora_weights.safetensors"
+    if not lora_path.exists():
+        raise FileNotFoundError(f" LoRA with path {lora_path} does not exists")
 
     # ---- run ----
-    print(f"loading {LORA_PATH}")
-    pipe = load_pipeline(LORA_PATH, DEVICE, torch.float32 if FP32 else torch.float16)
+    print(f"loading {lora_path}")
+    pipe = load_pipeline(lora_path, DEVICE, torch.float32 if FP32 else torch.float16)
     print(f"generating '{missing_pos}' | steps={STEP} "
           f"cfg={GUIDANCE} cn={CN_SCALE}")
 
-    for i in range(NUM_SAMPLES):
-        seed = SEED + i
-        r = generate(pipe, sheet, missing_pos, caption, steps=STEP,
-                     guidance=GUIDANCE, cn_scale=CN_SCALE, seed=seed,
-                     device=DEVICE, reduce=REDUCE)
-        tag = f"{missing_pos}_seed{seed}"
 
-        # r["composited"].save(out / f"{tag}_sheet.png") 
+    try:
+        r = generate(
+                pipe, 
+                sheet=sheet, 
+                missing=missing_pos, 
+                caption=caption,
+                steps=STEP,
+                guidance=GUIDANCE,
+                cn_scale=CN_SCALE,
+                seed=SEED,
+                device=DEVICE,
+                reduce=REDUCE
+            )
+    finally:
+        del pipe
+        torch.cuda.empty_cache()
 
-        # Image.fromarray(r["native"]).save(out / f"{tag}_native.png")
-        # G.upscale_nearest(Image.fromarray(r["native"]).convert("RGBA"), 8).save(
-        #     out / f"{tag}_native_x8.png")
+    snapped = out_dir / f"{missing_pos}_crop.png"
+    raw     = out_dir / f"{missing_pos}_crop_raw.png"
+    Image.fromarray(r["native"]).save(snapped)
+    Image.fromarray(r["native_raw"]).save(raw)
+    r["composited"].save(out_dir / f"{missing_pos}_sheet.png")
 
-        # Apply Post-processing
-        if truth is not None:
-            gt = G.quadrant_to_native(truth.crop(quad_box(missing_pos)))
-            exact = float((r["native"] == gt).all(axis=2).mean())
-            bg = np.array(G.FLATTEN_BG, dtype=np.uint8)
-            fg = ~(gt == bg).all(axis=2)
-            exact_fg = float((r["native"] == gt).all(axis=2)[fg].mean()) if fg.any() else 1.0
-            print(f"  seed {seed}: exact {100*exact:.1f}% | " f"exact on character pixels {100*exact_fg:.1f}%")
-
-            pad = np.pad(gt, ((0, 0), (0, 2), (0, 0)))
-            strip = np.concatenate([pad, r["native"]], axis=1)
-            G.upscale_nearest(Image.fromarray(strip).convert("RGBA"), 8).save(
-                out / f"{tag}_truth-vs-generated.png")
-        else:
-            print(f"seed {seed}: written")
+    return {
+        "crop_snapped": str(snapped),
+        "crop_raw": str(raw),
+        "sheet": str(out_dir / f"{missing_pos}_sheet.png"),
+        "palette_size": int(len(r["palette"])),
+    }
 

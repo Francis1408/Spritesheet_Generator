@@ -81,29 +81,6 @@ def require_artifact(d, name, ext):
         abort(409, f"run the {name} step first")
     return p
     
-def get_source_images(d):
-
-    saved = read_state(d).get("sources", {})
-    images = {}
-    available_images = {}
-    
-    for pos in ("front", "back", "left", "right"):
-        f = request.files.get(pos)
-        available_images[pos] = True
-        if f is None:
-            images[pos] = False
-            available_images[pos] = False
-            continue
-
-        data = f.read()
-        ext = Path(f.filename or "").suffix.lower() or ".png"
-        src = d / "sources" / f"{pos}{ext}"
-        src.write_bytes(data)
-        saved[pos] = src.name
-        images[pos] = data
-
-    return images, available_images, saved
-
 # ======= JOB ROUTES ===========
 @app.get("/api/pipeline")
 def get_pipeline():
@@ -197,7 +174,23 @@ def build_sprite_sheet_call(job_id):
 
     images = {}
     available_images = {}
-    images, available_images, saved = get_source_images(d)
+
+    saved = read_state(d).get("sources", {})
+  
+    for pos in ("front", "back", "left", "right"):
+        f = request.files.get(pos)
+        available_images[pos] = True
+        if f is None:
+            images[pos] = False
+            available_images[pos] = False
+            continue
+
+        data = f.read()
+        ext = Path(f.filename or "").suffix.lower() or ".png"
+        src = d / "sources" / f"{pos}{ext}"
+        src.write_bytes(data)
+        saved[pos] = src.name
+        images[pos] = data
 
     # Checks if there is three images 
     if sum(1 for v in images.values() if v) < config.MIN_IMAGES:
@@ -306,11 +299,14 @@ def captioner_llm_call(job_id):
 @app.post("/api/jobs/<job_id>/diffusion")
 def diffusion_call(job_id):
 
-    d = job_dir(job_id)
-  
-    images = {}
-    available_images = {}
-    images, available_images, _ = get_source_images(d)
+    d = job_dir(job_id)  
+    saved_crops = read_state(d).get("sources", {})
+
+    if not saved_crops:
+        return jsonify({
+            "status": "error",
+            "message": f"No source images found. Restart the pipeline",
+        }), 400
     
     available_pos_path = require_artifact(d, 'spritesheet', 'json');
     with open(available_pos_path) as f:
@@ -318,17 +314,31 @@ def diffusion_call(job_id):
 
     # Get views missing
     missing_views = [view for view, available in available_pos.items() if not available];
+    if len(missing_views) != 1:
+        return jsonify({"status": "error",
+                        "message": f"expected exactly 1 missing view, got {missing_views}"}), 400
+    missing_view = missing_views[0]
 
     # Get caption
-    caption = require_artifact(d, 'captioner_llm', 'json');
+    with open(require_artifact(d, 'captioner_llm', 'json')) as f:
+        caption = json.load(f)["text"]
 
     invalidate_from(d, "diffusion")
 
     try:
-        final_crop = run_diffusion()
-
+        final_data = run_diffusion(image_crops=saved_crops, caption=caption, missing_pos=missing_view, parameters=request)
+    
     except Exception as e:
         app.logger.exception("Diffusion failed")
         return jsonify({"status": "error", "message": str(e)}), 500
+
+    save_data(d, "diffusion", final_data)
+    advance(d, "diffusion")
+
+    return {
+        "status": "success",
+        "step": "diffusion",
+        "data": final_data,
+    }
 
     

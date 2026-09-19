@@ -16,6 +16,7 @@ const dropzones = document.querySelectorAll(".dropzone");
 const runButtonEl = document.getElementById('run-button');
 const errorEl = document.getElementById('error');
 const restartButtonEl = document.getElementById('restart-button');
+const upscaleDropdownEl = document.getElementById('upscale-option');
 
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => e.preventDefault());
@@ -85,9 +86,14 @@ runButtonEl.addEventListener('click', async () => {
     restartButtonEl.disabled = true;
     runButtonEl.textContent = 'Working…';
     clearError();
+    
+    let body = undefined;
 
     try {
-        const body = step.needsFiles ? collectDropZoneFiles() : undefined
+        
+        if(step.needsFiles) body = collectDropZoneFiles();
+        else if (step.needsDiffusionForms) body = collectDiffusionForms();
+
       
         const res = await fetch(`/api/jobs/${job.jobId}/${step.name}`, {method: 'POST', body});
         const data = await res.json().catch(() => ({}));
@@ -113,6 +119,8 @@ runButtonEl.addEventListener('click', async () => {
 restartButtonEl.addEventListener('click', async () => {
     restart()
 })
+
+
 // ===================================
 // ======= BACKEND COM ===============
 
@@ -178,6 +186,22 @@ function collectDropZoneFiles() {
     return form;
 }
 
+function collectDiffusionForms() {
+
+    const form =  new FormData();
+
+    // get upscale
+    const upscaleValue = document.getElementById("upscale-option").value;
+    form.append("upscale", upscaleValue)
+
+    // ADD NEW TAGS LATER
+
+    // Update diffusion form
+    return form;
+    
+
+}
+
 function filledZones() {
   return [...dropzones].filter(z => z.querySelector('img')).length;
 }
@@ -229,7 +253,7 @@ async function loadUpscaleOptions() {
     const optionContent = await res.json()
 
     // Dropdown reference
-    const dropdownEl = document.getElementById("options")
+    const dropdownEl = document.getElementById("upscale-option")
 
     console.log(optionContent)
 

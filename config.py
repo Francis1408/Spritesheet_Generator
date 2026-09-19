@@ -12,10 +12,10 @@ SPRITE_POS = {
     "right":  (256, 256)
 }
 PIPELINE = [
-    {"name": "spritesheet", "label": "Build sheet",      "needsFiles": True},
-    {"name": "captioner_vlm",   "label": "Generate VLM evidences", "needsFiles": False},
-    {"name": "captioner_llm",   "label": "Generate caption", "needsFiles": False},
-    {"name": "diffusion",   "label": "Generate image",   "needsFiles": False},
+    {"name": "spritesheet", "label": "Build sheet",      "needsFiles": True,  "needsDiffusionForms": False},
+    {"name": "captioner_vlm",   "label": "Generate VLM evidences", "needsFiles": False, "needsDiffusionForms": False},
+    {"name": "captioner_llm",   "label": "Generate caption", "needsFiles": False, "needsDiffusionForms": False},
+    {"name": "diffusion",   "label": "Generate image",   "needsFiles": False, "needsDiffusionForms": True},
 ]
 MIN_IMAGES = 3
 
@@ -29,6 +29,7 @@ PROMPT_PATH = r"prompts/"
 SD15 = "stable-diffusion-v1-5/stable-diffusion-v1-5"
 CONTROLNET_INPAINT = "lllyasviel/control_v11p_sd15_inpaint"
 LORA_PATH = "loras"
+DEFAULT_OUTPUT = "output"
 
 
 # ARGS

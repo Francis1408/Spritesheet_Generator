@@ -53,12 +53,6 @@ LEGACY_UPSCALE = QUAD_SIZE // NATIVE_CELL  # 4
 # (front=TL, back=TR, left=BL, right=BR). Exactly one of the two matches the
 # files on disk. Resolve it before training.
 # --------------------------------------------------------------------------
-QUADRANT_CELL = {
-    "front": (0, 0),
-    "back": (1, 0),
-    "left":  (0, 1),
-    "right":  (1, 1),
-}
 
 POSITIONS = ("front", "right", "back", "left")
 
@@ -73,9 +67,9 @@ def quadrant_box(position: str, quad_size: int = QUAD_SIZE):
 # --------------------------------------------------------------------------
 # LOCKED GEOMETRY -- fill in from step0b_measure.py output, then never change
 # --------------------------------------------------------------------------
-WINDOW_W: int | None = 51  # native px, e.g. 42
-WINDOW_H: int | None = 51  # native px, e.g. 52
-UPSCALE: int | None = 5    # integer factor, e.g. 6
+# WINDOW_W: int | None  # native px, e.g. 42
+# WINDOW_H: int | None  # native px, e.g. 52
+# UPSCALE: int | None   # integer factor, e.g. 6
 
 
 def _require_locked():
@@ -106,6 +100,46 @@ def content_offset():
             f"which does not fit in a {QUAD_SIZE}px quadrant"
         )
     return (QUAD_SIZE - cw) // 2, (QUAD_SIZE - ch) // 2
+
+
+def apply_geometry(window_w, window_h, upscale, quadrant_cell=None):
+
+    """Set geometry at runtime."""
+
+    global WINDOW_W, WINDOW_H, UPSCALE, QUADRANT_CELL
+
+    WINDOW_W, WINDOW_H, UPSCALE = int(window_w), int(window_h), int(upscale)
+    if quadrant_cell:
+        QUADRANT_CELL = {k: tuple(v) for k, v in quadrant_cell.items()}
+    if WINDOW_W * UPSCALE > QUAD_SIZE or WINDOW_H * UPSCALE > QUAD_SIZE:
+        raise ValueError(f"{WINDOW_W}x{WINDOW_H} @ {UPSCALE}x exceeds {QUAD_SIZE}px quadrant")
+
+
+def build_sprite_sheet_by_upscale(cells):
+    
+    """Apply locked geometry. Returns (sheet RGB 512x512, clipped bool)."""
+    
+    sheet = Image.new("RGB", (SHEET_SIZE, SHEET_SIZE), FLATTEN_BG)
+    any_clipped = False
+    built = []
+
+    for pos in POSITIONS:
+        src = cells.get(pos)
+        if src is None:
+            continue
+        if not isinstance(src, Image.Image):
+            src = Image.open(src)
+        win, clipped = crop_window(cells[pos])
+        if win is None:
+            continue
+        any_clipped |= clipped
+        content = upscale_nearest(win)
+        quad = place_in_quadrant(content)
+        col, row = QUADRANT_CELL[pos]
+        sheet.paste(quad, (col * QUAD_SIZE, row * QUAD_SIZE))
+        built.append(pos)
+
+    return sheet, any_clipped
 
 
 # --------------------------------------------------------------------------
