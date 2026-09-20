@@ -6,17 +6,13 @@ metrics) MUST import its geometry from here. If two scripts disagree about the
 quadrant map or the upscale factor, your positional captions become wrong and no
 amount of ControlNet tuning will fix it.
 
-Run order:
-    1. step0a_verify_quadrants.py  -> confirm / fix QUADRANT_CELL below
-    2. step0b_measure.py           -> fill in WINDOW_W, WINDOW_H, UPSCALE below
-    3. step1_vae_roundtrip.py      -> gate: is the VAE floor acceptable?
 """
 
 from __future__ import annotations
 
 import numpy as np
 from PIL import Image
-from config import QUAD_SIZE, SHEET_SIZE
+from config import QUAD_SIZE, SHEET_SIZE, QUADRANT_CELL
 
 # --------------------------------------------------------------------------
 # Background definition. Import these in color_profile.py / sprite_crops.py
@@ -39,21 +35,6 @@ NATIVE_CELL = 64             # native sprite cell size in the source assets
 # Only used to convert measurements taken on existing sheets back to native px.
 LEGACY_UPSCALE = QUAD_SIZE // NATIVE_CELL  # 4
 
-# --------------------------------------------------------------------------
-# QUADRANT MAP  --  VERIFY THIS WITH step0a_verify_quadrants.py
-#
-# Values are (col, row) in the 2x2 grid: (0,0)=top-left, (1,0)=top-right,
-# (0,1)=bottom-left, (1,1)=bottom-right.
-#
-# The default below follows Figure 1 of the TCC and the positional captions
-# ("top-left front view, top-right right-facing view, bottom-left back view,
-#  bottom-right left-facing view").
-#
-# NOTE: your sprite_crops.py QUADRANTS dict uses a DIFFERENT convention
-# (front=TL, back=TR, left=BL, right=BR). Exactly one of the two matches the
-# files on disk. Resolve it before training.
-# --------------------------------------------------------------------------
-
 POSITIONS = ("front", "right", "back", "left")
 
 
@@ -63,13 +44,6 @@ def quadrant_box(position: str, quad_size: int = QUAD_SIZE):
     return (col * quad_size, row * quad_size,
             (col + 1) * quad_size, (row + 1) * quad_size)
 
-
-# --------------------------------------------------------------------------
-# LOCKED GEOMETRY -- fill in from step0b_measure.py output, then never change
-# --------------------------------------------------------------------------
-# WINDOW_W: int | None  # native px, e.g. 42
-# WINDOW_H: int | None  # native px, e.g. 52
-# UPSCALE: int | None   # integer factor, e.g. 6
 
 
 def _require_locked():
@@ -129,6 +103,7 @@ def build_sprite_sheet_by_upscale(cells):
             continue
         if not isinstance(src, Image.Image):
             src = Image.open(src)
+            cells[pos] = src
         win, clipped = crop_window(cells[pos])
         if win is None:
             continue

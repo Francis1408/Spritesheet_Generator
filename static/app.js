@@ -376,7 +376,32 @@ function renderCaptionerLLM(el, artifact, status) {
 
 }
 
-function renderDiffusion(el, artifact) {}
+function renderDiffusion(el, artifact) {
+
+    const rawOutput = el.querySelector("#output-raw");
+    const snappedOutput = el.querySelector("#output-snapped");
+
+    if(!artifact?.data) return;
+
+
+    // clear previous renders, otherwise images pile up on every render()
+    if (rawOutput) rawOutput.replaceChildren();
+    if (snappedOutput) snappedOutput.replaceChildren();
+
+    if(artifact.data?.crop_raw) {
+        const img = document.createElement('img');
+        img.src = `${artifact.data.crop_raw}?t=${Date.now()}`;
+        rawOutput.appendChild(img);
+    }
+
+    if(artifact.data?.crop_snapped) {
+        const img = document.createElement('img');
+        img.src = `${artifact.data.crop_snapped}?t=${Date.now()}`;
+        snappedOutput.appendChild(img);
+    }
+
+    
+}
 
 
 // ====== ON PAGE LOAD ======

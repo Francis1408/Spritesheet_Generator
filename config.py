@@ -3,6 +3,12 @@ NEW_DIMENSIONS = (256, 256)
 SHEET_SIZE = 512
 QUAD_SIZE = SHEET_SIZE // 2  # 256
 FLATTEN_BG = (128, 128, 128)
+QUADRANT_CELL = {
+    "front": (0, 0),
+    "back": (1, 0),
+    "left": (0, 1),
+    "right": (1, 1),
+}
 
 
 SPRITE_POS = {

@@ -189,7 +189,7 @@ def build_sprite_sheet_call(job_id):
         ext = Path(f.filename or "").suffix.lower() or ".png"
         src = d / "sources" / f"{pos}{ext}"
         src.write_bytes(data)
-        saved[pos] = src.name
+        saved[pos] = str(src)
         images[pos] = data
 
     # Checks if there is three images 
@@ -308,9 +308,12 @@ def diffusion_call(job_id):
             "message": f"No source images found. Restart the pipeline",
         }), 400
     
-    available_pos_path = require_artifact(d, 'spritesheet', 'json');
+    available_pos_path = require_artifact(d, 'spritesheet', 'json')
     with open(available_pos_path) as f:
         available_pos = json.load(f)
+
+    # Request variables
+    request_data = request.form.to_dict()
 
     # Get views missing
     missing_views = [view for view, available in available_pos.items() if not available];
@@ -321,12 +324,12 @@ def diffusion_call(job_id):
 
     # Get caption
     with open(require_artifact(d, 'captioner_llm', 'json')) as f:
-        caption = json.load(f)["text"]
+        caption = json.load(f)["data"]
 
     invalidate_from(d, "diffusion")
 
     try:
-        final_data = run_diffusion(image_crops=saved_crops, caption=caption, missing_pos=missing_view, parameters=request)
+        final_data = run_diffusion(image_crops=saved_crops, caption=caption, missing_pos=missing_view, parameters=request_data)
     
     except Exception as e:
         app.logger.exception("Diffusion failed")

@@ -20,8 +20,6 @@ Usage:
 
 from __future__ import annotations
 
-import argparse
-import json
 from pathlib import Path
 
 import numpy as np
@@ -162,8 +160,8 @@ def generate(pipe, sheet, missing, caption, *, steps=30, guidance=7.5,
     ).images[0]
 
     x0, y0, x1, y1 = quad_box(missing)
-    comp = sheet.copy()
-    comp.paste(raw.crop((x0, y0, x1, y1)), (x0, y0))
+    comp_raw = sheet.copy()
+    comp_raw.paste(raw.crop((x0, y0, x1, y1)), (x0, y0))
 
     known = [p for p in G.POSITIONS if p != missing]
     native = extract_native(raw, missing, known_palette(sheet, known), reduce)
@@ -172,9 +170,15 @@ def generate(pipe, sheet, missing, caption, *, steps=30, guidance=7.5,
     # matches what the metrics score
     clean = Image.fromarray(native).convert("RGBA")
     ox, oy = G.content_offset()
-    comp.paste(G.upscale_nearest(clean), (x0 + ox, y0 + oy))
+    comp_clean = sheet.copy()
+    comp_clean.paste(G.upscale_nearest(clean), (x0 + ox, y0 + oy))
 
-    return {"raw_sheet": raw, "composited": comp, "native": native}
+    return {
+        "raw_sheet": raw, 
+        "comp_raw": comp_raw, 
+        "comp_clean": comp_clean,
+        "native": native
+    }
 
 
 # ==========================================================================
@@ -185,10 +189,10 @@ def run_diffusion(image_crops, caption, missing_pos, parameters):
     Geometry comes from the checkpoint, so 4x and 5x LoRAs both just work.
     """
 
-    G.apply_geometry(64, 64, parameters.upscale)
-    truth, clipped = G.build_sprite_sheet_by_upscale(image_crops)
-    if truth is None or clipped:
-        raise ValueError(f"Upscale {parameters.upscale} clipped the crops. Please try a lower upscale")
+    G.apply_geometry(64, 64, parameters.get("upscale"))
+    sheet_in, clipped = G.build_sprite_sheet_by_upscale(image_crops)
+    if sheet_in is None or clipped:
+        raise ValueError(f"Upscale {parameters.get('upscale')} clipped the crops. Please try a lower upscale")
 
     if not parameters.get("output"):
         out_dir = Path(DEFAULT_OUTPUT)
@@ -198,12 +202,12 @@ def run_diffusion(image_crops, caption, missing_pos, parameters):
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # blank the target quadrant so no source pixel leaks into hint or palette
-    sheet = truth.copy()
+    sheet = sheet_in.copy()
     x0, y0, x1, y1 = quad_box(missing_pos)
     sheet.paste(Image.new("RGB", (G.QUAD_SIZE, G.QUAD_SIZE), G.FLATTEN_BG), (x0, y0))
         
     # Get lora_path
-    lora_path = Path(LORA_PATH) / f"x{parameters.upscale}_lora_weights.safetensors"
+    lora_path = Path(LORA_PATH) / f"x{parameters.get('upscale')}_lora_weights.safetensors"
     if not lora_path.exists():
         raise FileNotFoundError(f" LoRA with path {lora_path} does not exists")
 
@@ -233,9 +237,11 @@ def run_diffusion(image_crops, caption, missing_pos, parameters):
 
     snapped = out_dir / f"{missing_pos}_crop.png"
     raw     = out_dir / f"{missing_pos}_crop_raw.png"
+    
     Image.fromarray(r["native"]).save(snapped)
-    Image.fromarray(r["native_raw"]).save(raw)
-    r["composited"].save(out_dir / f"{missing_pos}_sheet.png")
+    r["comp_raw"].save(raw)
+    r["raw_sheet"].save(out_dir / f"{missing_pos}_sheet_raw.png")
+    r["comp_clean"].save(out_dir / f"{missing_pos}_sheet_comp_clean.png")
 
     return {
         "crop_snapped": str(snapped),
