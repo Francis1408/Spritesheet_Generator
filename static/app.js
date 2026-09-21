@@ -452,7 +452,6 @@ function renderDiffusion(el, artifact) {
     
 }
 
-
 // ====== ON PAGE LOAD ======
 async function init() {
   try {

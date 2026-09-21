@@ -8,73 +8,84 @@
 </head>
 <body>
 
-    <section class="image-area" data-step="spritesheet">
-        <div class="image-row">
-            <p>Front</p>
-            <div class="dropzone" id="front">
-                <button class="remove-button">X</button>
-                <p>Drop here</p>
+    <header>
+        <h2>HEADER</h2>
+    </header>
+
+    <main>
+
+        <section class="image-area" data-step="spritesheet">
+            <div class="image-row">
+                <p>Front</p>
+                <div class="dropzone" id="front">
+                    <button class="remove-button">X</button>
+                    <p>Drop here</p>
+                </div>
             </div>
-        </div>
-        
-        <div class="image-row">
-            <p>Back</p>
-            <div class="dropzone" id="back">
-                <button class="remove-button">X</button>
-                <p>Drop here</p>
-            </div>
-        </div>
             
-        <div class="image-row">
-            <p>Left</p>
-            <div class="dropzone" id="left">
-                <button class="remove-button">X</button>
-                <p>Drop here</p>
+            <div class="image-row">
+                <p>Back</p>
+                <div class="dropzone" id="back">
+                    <button class="remove-button">X</button>
+                    <p>Drop here</p>
+                </div>
             </div>
-        </div>
-
-        <div class="image-row">
-            <p>Right</p>
-            <div class="dropzone" id="right">
-                <button class="remove-button">X</button>
-                <p>Drop here</p>
+            
+            <div class="image-row">
+                <p>Left</p>
+                <div class="dropzone" id="left">
+                    <button class="remove-button">X</button>
+                    <p>Drop here</p>
+                </div>
             </div>
-        </div>
-    </section>
-
-    <section class="captioner-area" data-step="captioner">
-
-        <section data-step="captioner_vlm">
-            <div class="previews"></div>
+            
+            <div class="image-row">
+                <p>Right</p>
+                <div class="dropzone" id="right">
+                    <button class="remove-button">X</button>
+                    <p>Drop here</p>
+                </div>
+            </div>
         </section>
-
-        <section data-step="captioner_llm">
-            <textarea class="caption-text" rows="10"></textarea>
-        </section>
-
-        <div class="image-row">
-            <div class="dropzone" id="output">
-                <p>Output</p>
+        
+        <section class="captioner-area" data-step="captioner">
+            
+            <section data-step="captioner_vlm">
+                <div class="previews"></div>
+            </section>
+            
+            <section data-step="captioner_llm">
+                <textarea class="caption-text" rows="10"></textarea>
+            </section>
+            
+            <div class="image-row">
+                <div class="dropzone" id="output">
+                    <p>Output</p>
+                </div>
             </div>
-        </div>
-        <p id="error">NORMAL</p>
-        <button id="run-button">Run</button>
-        <button id="restart-button">Restart</button>
+            <p id="error">NORMAL</p>
+            <button id="run-button">Run</button>
+            <button id="restart-button">Restart</button>
+            
+        </section>
+        
+        
+        <section class="diffusion-area" data-step="diffusion">
+            <div class="output" id="output">
+                <p>Output here</p>
+            </div>
+            <div class="output" id="output">
+                <p>Output here</p>
+            </div>
+            <label for="options">Choose an upscale</label>
+            <select name="options" id="upscale-option"></select>
+        </section>
+    </main>
 
-    </section>
-
-
-    <section class="diffusion-area" data-step="diffusion">
-        <div class="output" id="output-raw">
-            <p>Output here</p>
-        </div>
-        <div class="output" id="output-snapped">
-            <p>Output here</p>
-        </div>
-        <label for="options">Choose an upscale</label>
-        <select name="options" id="upscale-option"></select>
-    </section>
-    
+    <footer>
+        <h2>Footer</h2>
+    </footer>
+        
     <script src="app.js"></script>
 </body>
 </html>

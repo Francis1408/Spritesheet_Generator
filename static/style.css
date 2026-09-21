@@ -1,60 +1,108 @@
+* { box-sizing: border-box; }
+
 body {
-    font-family: sans-serif;
-    display: grid;
-    gap: 1rem;
-    grid-template-columns: repeat(3, 1fr);
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    margin: 0;
-    background-color: #f4f4f9;
+  font-family: sans-serif;
+  margin: 0;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: 10% 80% 10%;
+  background-color: #f4f4f9;
 }
 
-body > div {
-  width: 300px;   
+header, footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+}
+
+/* ===== Main: sections side by side ===== */
+main {
+  display: flex;
+  gap: 2rem;
+  padding: 1rem 2rem;
+  min-height: 0;          /* lets children scroll inside the 60% row */
+  overflow-x: auto;
+}
+
+main > section {
+  flex: 1 1 0;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 10px;
+}
+
+/* Nested step sections also stack vertically */
+main section section {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+
+/* Step states */
+[data-step].locked { opacity: .5; }
+[data-step].active { outline: 2px solid #2196f3; }
+
+/* ===== Dropzones and outputs ===== */
+.image-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.image-row > p {
+  width: 3rem;
+  margin: 0;
 }
 
 .dropzone, .output {
-    width: 250px;
-    height: 250px;
-    border: 3px dashed #b4b4b4;
-    border-radius: 10px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: #fff;
-    transition: background-color 0.2s, border-color 0.2s;
+  position: relative;
+  width: 100%;
+  max-width: 180px;
+  aspect-ratio: 1;
+  border: 3px dashed #b4b4b4;
+  border-radius: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #fff;
+  transition: background-color 0.2s, border-color 0.2s;
 }
 
 .dropzone.hover {
-    background-color: #e3f2fd;
-    border-color: #2196f3;
+  background-color: #e3f2fd;
+  border-color: #2196f3;
 }
 
-.image-area {
-    gap: 10px;
-    justify-content: center;
+.remove-button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+  display: none;
 }
 
-.image-row {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-
+.dropzone img, .output img {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+  border-radius: 5px;
+  cursor: grab;
 }
 
-img {
-    width: 200px;
-    height: 200px;
-    object-fit: cover;
-    border-radius: 5px;
-    cursor: grab;
+.dropzone img:active { cursor: grabbing; }
+
+.caption-text {
+  width: 100%;
+  resize: vertical;
 }
 
-img:active {
-    cursor: grabbing;
-}
-
+/* ===== Previews ===== */
 .previews {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
