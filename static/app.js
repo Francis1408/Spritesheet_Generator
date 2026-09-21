@@ -18,6 +18,8 @@ const errorEl = document.getElementById('error');
 const restartButtonEl = document.getElementById('restart-button');
 const upscaleDropdownEl = document.getElementById('upscale-option');
 const removeButtonsEl = document.querySelectorAll(".remove-button");
+const diffusionButtonEl = document.getElementById('diffusion-settings');
+const closeModalButtonsEl = document.querySelectorAll('.modal-btn');
 
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => e.preventDefault());
@@ -98,6 +100,15 @@ removeButtonsEl.forEach(btn => {
 
 });
 
+closeModalButtonsEl.forEach(btn => {
+    btn.addEventListener('click', () => {
+
+        const parentWindow = btn.closest('.window-modal');
+        parentWindow.style.display = 'none';
+        
+    })
+})
+
 runButtonEl.addEventListener('click', async () => {
 
     // Retrieves the last step executed
@@ -144,6 +155,12 @@ runButtonEl.addEventListener('click', async () => {
 
 restartButtonEl.addEventListener('click', async () => {
     restart()
+})
+
+diffusionButtonEl.addEventListener('click', () => {
+
+    const diffusionSettingsEl = document.getElementById('settings-modal');
+    diffusionSettingsEl.style.display = 'flex'
 })
 
 

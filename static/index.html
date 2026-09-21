@@ -8,8 +8,35 @@
 </head>
 <body>
 
+    <div id="settings-modal" class="window-modal">
+        <div class="window-box">
+
+            <!--- Modal Header --->
+            <div class="window-header">
+
+                <!--- Title --->
+                <h2 class="modal-title">Diffusion settings</h2>
+
+                <!-- Buttons on the right-->
+                 <div class="window-header-right">
+                    <button class="modal-btn" data-action="close">X</button>
+                 </div>
+            </div>
+
+
+            <!--- Content--->
+            <div class="modal-settings-body">
+                <p><strong>PAR1</strong></p>
+                <p><strong>PAR1</strong></p>
+                <p><strong>PAR1</strong></p>
+                <p><strong>PAR1</strong></p>
+            </div>
+        </div>
+    </div>
+
     <header>
         <h2>HEADER</h2>
+        <button id="diffusion-settings">OPEN</button>
     </header>
 
     <main>
@@ -64,8 +91,6 @@
                 </div>
             </div>
             <p id="error">NORMAL</p>
-            <button id="run-button">Run</button>
-            <button id="restart-button">Restart</button>
             
         </section>
         
@@ -83,7 +108,8 @@
     </main>
 
     <footer>
-        <h2>Footer</h2>
+        <button id="run-button">Run</button>
+        <button id="restart-button">Restart</button>
     </footer>
         
     <script src="app.js"></script>

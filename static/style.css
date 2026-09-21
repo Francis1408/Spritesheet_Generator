@@ -37,6 +37,7 @@ main > section {
   border-radius: 10px;
 }
 
+
 /* Nested step sections also stack vertically */
 main section section {
   display: flex;
@@ -154,3 +155,86 @@ main section section {
   background: #fff;
   box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
 }
+
+.image-area     { flex: 1; }   /* 1 part */
+.captioner-area { flex: 2; }   /* 2 parts, twice as wide */
+.diffusion-area { flex: 1.5; }
+
+
+/* ===== Window styles ===== */
+
+
+.window-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  background-color: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  justify-content: center;
+  align-items: center;
+  z-index: 9999; /* Bring forward*/
+
+}
+
+.window-box {
+  background: #FFFF;
+  color: #3333;
+  padding: 0;
+  border-radius: 1rem;
+  width: 42rem;
+  max-width: 90vw;
+  max-height: 85vh;
+
+  display: flex;
+  flex-direction: column;
+  box-shadow: 
+    0 20px 30px rgba(0, 0, 0, 0.4),
+    0 4px 10px rgba(0, 0, 0, 0.2)
+
+}
+
+.window-header {
+
+  background-color: #aeacaf;
+  padding: 0.8rem 1.2rem;
+  border-radius: 1rem 1rem 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+}
+
+.window-header-right {
+  display: flex;
+  gap: 10px;
+}
+
+.model-btn {
+  background-color: #B54DEF;
+  color: white;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background-color 0.2s;
+
+}
+
+.modal-title {
+  margin: 1rem 1.5rem 0.5rem;
+  font-size: 1.25 rem;
+  font-weight: bold;
+  color: #333333
+}
+
+.modal-title {
+  margin: 1rem 1.5rem 0.5rem;
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #333333;
+}
+
+
+
