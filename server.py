@@ -1,6 +1,7 @@
 from pathlib import Path
 from flask import Flask, jsonify, request, send_file, abort, send_from_directory
 from utils.spritesheet_builder import build_sprite_sheet
+from utils.token_counter import count_caption_tokens
 from utils.diffusion import run_diffusion
 import config
 from utils.caption_generator import CaptionGenerator
@@ -80,6 +81,23 @@ def require_artifact(d, name, ext):
     if not p.exists():
         abort(409, f"run the {name} step first")
     return p
+
+# ========== UTILS =============
+
+def parse_diffusion_variables(request_form):
+
+    f = request_form.form
+
+    return {
+        "steps"       : int(f.get("step", 30)),
+        "guidance"    : float(f.get("guidance", 7.5)),
+        "cn_scale"    : float(f.get("cn_scale", 1.0)),
+        "seed"        : int(f.get("seed", 0)),
+        "num_samples" : int(f.get("num_samples", 1)),
+        "precision"   : f.get("precision", "fp16"),
+        "reduce"      : f.get("reduce", "median"),
+        "upscale"     : f.get("upscale", "4")
+    }
     
 # ======= JOB ROUTES ===========
 @app.get("/api/pipeline")
@@ -286,6 +304,10 @@ def captioner_llm_call(job_id):
         app.logger.exception("LLM run failed")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+
+    # Check if the caption generated exceeds the number of tokens
+    results = count_caption_tokens(caption)
+
     # Save evidence
     save_data(d, "captioner_llm", {"data": caption})
     advance(d, "captioner_llm")
@@ -293,8 +315,8 @@ def captioner_llm_call(job_id):
     return {
         "status": "success",
         "step": "captioner_llm",
-        "data": caption,
-    }
+        "data": caption, 
+    } | results
 
 @app.post("/api/jobs/<job_id>/diffusion")
 def diffusion_call(job_id):
@@ -313,10 +335,11 @@ def diffusion_call(job_id):
         available_pos = json.load(f)
 
     # Request variables
-    request_data = request.form.to_dict()
+
+    request_data = parse_diffusion_variables(request)
 
     # Get views missing
-    missing_views = [view for view, available in available_pos.items() if not available];
+    missing_views = [view for view, available in available_pos.items() if not available]
     if len(missing_views) != 1:
         return jsonify({"status": "error",
                         "message": f"expected exactly 1 missing view, got {missing_views}"}), 400
@@ -339,6 +362,7 @@ def diffusion_call(job_id):
     advance(d, "diffusion")
 
     return {
+
         "status": "success",
         "step": "diffusion",
         "data": final_data,

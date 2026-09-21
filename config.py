@@ -30,6 +30,7 @@ VLM_MODEL = "qwen3-vl:8b-instruct"
 LLM_MODEL = "qwen3:14b"
 OLLAMA_CHAT = "http://localhost:11434/api/chat"
 PROMPT_PATH = r"prompts/"
+LIMIT = 77 # CLIP encoder token limit
 
 # ===== DIFFUSION VARIABLES  =======
 SD15 = "stable-diffusion-v1-5/stable-diffusion-v1-5"

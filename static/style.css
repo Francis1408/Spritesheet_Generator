@@ -236,5 +236,10 @@ main section section {
   color: #333333;
 }
 
-
+#diffusion-settings-form {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: .6rem 1rem;
+  align-items: center;
+}
 

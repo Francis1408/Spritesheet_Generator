@@ -26,10 +26,36 @@
 
             <!--- Content--->
             <div class="modal-settings-body">
-                <p><strong>PAR1</strong></p>
-                <p><strong>PAR1</strong></p>
-                <p><strong>PAR1</strong></p>
-                <p><strong>PAR1</strong></p>
+                <form id="diffusion-settings-form">
+
+                    <label for="precision">PRECISION:</label>
+                    <select name="precision" id="precision">
+                        <option value="fp16">fp16</option>
+                        <option value="fp32">fp32</option>
+                    </select>
+
+                    <label for="step">STEPS:</label>
+                    <input type="number" id="step" name="step" value="30">
+
+                    <label for="guidance">GUIDANCE:</label>
+                    <input type="number" id="guidance" name="guidance" value="7.5">
+                    
+                    <label for="cn_scale">CN SCALE:</label>
+                    <input type="number" id="cn_scale" name="cn_scale" value="30">
+
+                    <label for="seed">SEED:</label>
+                    <input type="number" id="seed" name="seed" value="30">
+
+                    <label for="num_samples">NUM SAMPLES:</label>
+                    <input type="number" id="num_samples" name="num_samples" value="1">
+                    
+                    <label for="reduce">REDUCE:</label>
+                    <select name="reduce" id="reduce">
+                        <option value="median">Median</option>
+                        <option value="mean">Mean</option>
+                        <option value="mode">Mode</option>
+                    </select>
+                </form>
             </div>
         </div>
     </div>

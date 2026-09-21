@@ -105,7 +105,7 @@ closeModalButtonsEl.forEach(btn => {
 
         const parentWindow = btn.closest('.window-modal');
         parentWindow.style.display = 'none';
-        
+
     })
 })
 
@@ -232,18 +232,16 @@ function collectDropZoneFiles() {
 
 function collectDiffusionForms() {
 
-    const form =  new FormData();
+    // Get diffusion settings
+    const diffusionSettingsFormEl = document.getElementById('diffusion-settings-form');
+    const form = new FormData(diffusionSettingsFormEl);
 
-    // get upscale
+    // Get upscale
     const upscaleValue = document.getElementById("upscale-option").value;
     form.append("upscale", upscaleValue)
 
-    // ADD NEW TAGS LATER
-
-    // Update diffusion form
     return form;
     
-
 }
 
 function filledZones() {
@@ -438,7 +436,7 @@ function renderCaptionerLLM(el, artifact, status) {
     host.value = '';
     if(!artifact?.data) return;
 
-    host.value = artifact.data
+    host.value = artifact.data.data;
 
 }
 

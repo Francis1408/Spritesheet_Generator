@@ -30,7 +30,7 @@ from diffusers import (ControlNetModel, StableDiffusionControlNetPipeline,
                        UniPCMultistepScheduler)
 
 import utils.spritegeom as G
-from config import SD15, DEFAULT_OUTPUT, CONTROLNET_INPAINT, SHEET_SIZE, QUAD_SIZE, FLATTEN_BG, LORA_PATH, FP32, DEVICE, STEP, CN_SCALE, GUIDANCE, NUM_SAMPLES, SEED, REDUCE
+from config import SD15, DEFAULT_OUTPUT, CONTROLNET_INPAINT, LORA_PATH, DEVICE, STEP, CN_SCALE, GUIDANCE
 
 
 NEGATIVE = ("blurry, smooth, antialiased, gradient, photorealistic, 3d render, "
@@ -137,8 +137,8 @@ def extract_native(sheet: Image.Image, pos: str, palette=None, reduce="median"):
 
 
 # ==========================================================================
-def generate(pipe, sheet, missing, caption, *, steps=30, guidance=7.5,
-             cn_scale=1.0, seed=42, device="cuda", reduce="median"):
+def generate(pipe, sheet, missing, caption, steps, guidance, cn_scale, 
+             seed, device="cuda", reduce="median"):
     """
     Returns dict with:
         raw_sheet   PIL, the model's full 512x512 output
@@ -212,7 +212,7 @@ def run_diffusion(image_crops, caption, missing_pos, parameters):
 
     # ---- run ----
     print(f"loading {lora_path}")
-    pipe = load_pipeline(lora_path, DEVICE, torch.float32 if FP32 else torch.float16)
+    pipe = load_pipeline(lora_path, DEVICE, torch.float32 if parameters.get("precision") == "fp32" else torch.float16)
     print(f"generating '{missing_pos}' | steps={STEP} "
           f"cfg={GUIDANCE} cn={CN_SCALE}")
 
@@ -220,15 +220,15 @@ def run_diffusion(image_crops, caption, missing_pos, parameters):
     try:
         r = generate(
                 pipe, 
-                sheet=sheet, 
-                missing=missing_pos, 
-                caption=caption,
-                steps=STEP,
-                guidance=GUIDANCE,
-                cn_scale=CN_SCALE,
-                seed=SEED,
-                device=DEVICE,
-                reduce=REDUCE
+                sheet=    sheet, 
+                missing=  missing_pos, 
+                caption=  caption,
+                steps=    parameters.get("steps"),
+                guidance= parameters.get("guidance"),
+                cn_scale= parameters.get("cn_scale"),
+                seed=     parameters.get("seed"),
+                device=   DEVICE,
+                reduce=   parameters.get("reduce")
             )
     finally:
         del pipe
