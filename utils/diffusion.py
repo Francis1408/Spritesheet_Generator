@@ -33,7 +33,6 @@ import utils.spritegeom as G
 from config import SD15, DEFAULT_OUTPUT, CONTROLNET_INPAINT, SHEET_SIZE, QUAD_SIZE, FLATTEN_BG, LORA_PATH, FP32, DEVICE, STEP, CN_SCALE, GUIDANCE, NUM_SAMPLES, SEED, REDUCE
 
 
-
 NEGATIVE = ("blurry, smooth, antialiased, gradient, photorealistic, 3d render, "
             "text, watermark, jpeg artifacts")
 

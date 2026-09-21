@@ -17,6 +17,7 @@ const runButtonEl = document.getElementById('run-button');
 const errorEl = document.getElementById('error');
 const restartButtonEl = document.getElementById('restart-button');
 const upscaleDropdownEl = document.getElementById('upscale-option');
+const removeButtonsEl = document.querySelectorAll(".remove-button");
 
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => e.preventDefault());
@@ -73,7 +74,28 @@ dropzones.forEach(zone => {
 
         clearError();
         updateButtons();
+        renderDropZoneBoxes();
     });
+});
+
+removeButtonsEl.forEach(btn => {
+
+    btn.addEventListener('click', (e) => {
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const zone = btn.closest('.dropzone');
+        const img = zone.querySelector('img');
+        if (img) {
+        if (img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
+        img.remove();
+        }
+
+        renderDropZoneBoxes();
+        updateButtons();
+  });
+
 });
 
 runButtonEl.addEventListener('click', async () => {
@@ -81,6 +103,10 @@ runButtonEl.addEventListener('click', async () => {
     // Retrieves the last step executed
     const step = nextStep(job);
     if (!step) return;
+
+    // Disble remove buttons while a step is running
+    document.querySelectorAll('.remove-button')
+    .forEach(btn => btn.style.display = 'none');
 
     runButtonEl.disabled = true;
     restartButtonEl.disabled = true;
@@ -164,6 +190,7 @@ async function resume() {
 }
 
 async function restart() {
+
     const res = await fetch(`/api/jobs/${job.jobId}/reset`, { method: 'POST' });
     if(!res?.status === "success") {
         showError('Error: Couldnt restart the pipeline')
@@ -299,7 +326,28 @@ function restoreSources() {
     img.src = `/api/jobs/${job.jobId}/sources/${file}?t=${Date.now()}`;
     img.draggable = true;
     zone.appendChild(img);
+
   }
+}
+
+function renderDropZoneBoxes() {
+  const atStart = (job?.done.length ?? 0) === 0;
+
+  dropzones.forEach(dropzone => {
+    const hasImage = !!dropzone.querySelector('img');
+    const btn = dropzone.querySelector('.remove-button');
+    let p = dropzone.querySelector('p');
+
+    if (!hasImage && !p) {
+      p = document.createElement('p');
+      p.textContent = 'Drop Here';
+      dropzone.appendChild(p);
+    } else if (hasImage && p) {
+      p.remove();
+    }
+
+    if (btn) btn.style.display = hasImage && atStart ? 'block' : 'none';
+  });
 }
 
 
@@ -310,6 +358,7 @@ function render() {
     const next = nextStep(job);
     
     restoreSources();
+    renderDropZoneBoxes()
 
     for (const step of PIPELINE) {
         
