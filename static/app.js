@@ -77,6 +77,7 @@ dropzones.forEach(zone => {
         clearError();
         updateButtons();
         renderDropZoneBoxes();
+        handlePipelineEnd();
     });
 });
 
@@ -236,6 +237,10 @@ function collectDiffusionForms() {
     const diffusionSettingsFormEl = document.getElementById('diffusion-settings-form');
     const form = new FormData(diffusionSettingsFormEl);
 
+    // Get caption 
+    const captionTextEl = document.getElementById('caption-box');
+    form.append("caption", captionTextEl.value)
+
     // Get upscale
     const upscaleValue = document.getElementById("upscale-option").value;
     form.append("upscale", upscaleValue)
@@ -331,18 +336,34 @@ function updateButtons() {
 
 
 function restoreSources() {
+
   for (const [pos, file] of Object.entries(job.sources ?? {})) {
+
     const zone = document.getElementById(pos);
     if (!zone || zone.querySelector('img')) continue;
 
     zone.querySelector('p')?.remove();
 
     const img = document.createElement('img');
-    img.src = `/api/jobs/${job.jobId}/sources/${file}?t=${Date.now()}`;
+    img.src = `/api/jobs/${job.jobId}/${file}?t=${Date.now()}`;
     img.draggable = true;
     zone.appendChild(img);
 
   }
+}
+
+async function handlePipelineEnd() {
+    const step = nextStep();
+    if (step) return;
+
+    // If has ended, handle final actions
+    const form = new FormData();
+    form.append("output_path", "")
+
+    const res = await fetch(`/api/jobs/${job.jobId}/export`, {method: 'POST', form});
+    if(!res?.status === "success") {
+        showError('Error: Couldnt restart the pipeline')
+    }
 }
 
 function renderDropZoneBoxes() {
@@ -397,7 +418,6 @@ function render() {
 // STEP 1 RENDERER
 function renderSpriteSheet(el, artifact, status) {
 
-
     const output = document.getElementById('output')
 
     // Clear current image
@@ -434,9 +454,21 @@ function renderCaptionerLLM(el, artifact, status) {
 
     const host = el.querySelector('.caption-text');
     host.value = '';
+    if (errorEl) errorEl.textContent = '';
     if(!artifact?.data) return;
 
-    host.value = artifact.data.data;
+    const { data: caption, length, exceed } = artifact.data;
+    host.value = caption;
+
+
+    // Place warning if caption exceeds token limit
+    if(exceed && errorEl) {
+        const over = length - 77;
+        errorEl.textContent =
+            `WARNING: The caption exceeds the limit by ${over} token${over === 1 ? '' : 's'}.\n` +
+            `Edit it for better results.`;
+
+    }
 
 }
 
@@ -447,24 +479,17 @@ function renderDiffusion(el, artifact) {
 
     if(!artifact?.data) return;
 
-
     // clear previous renders, otherwise images pile up on every render()
-    if (rawOutput) rawOutput.replaceChildren();
-    if (snappedOutput) snappedOutput.replaceChildren();
-
-    if(artifact.data?.crop_raw) {
+    const add = (host, url) => {
+        if (!host || !url) return;
         const img = document.createElement('img');
-        img.src = `${artifact.data.crop_raw}?t=${Date.now()}`;
-        rawOutput.appendChild(img);
-    }
+        img.src = `${url}?t=${Date.now()}`;
+        host.appendChild(img);
+    };
 
-    if(artifact.data?.crop_snapped) {
-        const img = document.createElement('img');
-        img.src = `${artifact.data.crop_snapped}?t=${Date.now()}`;
-        snappedOutput.appendChild(img);
-    }
+    add(rawOutput, artifact.data.crop_raw);
+    add(snappedOutput, artifact.data.crop_snapped);
 
-    
 }
 
 // ====== ON PAGE LOAD ======

@@ -15,12 +15,17 @@ from config import LIMIT
 
 
 def count_caption_tokens(caption):
+    tok = CLIPTokenizer.from_pretrained(
+        "stable-diffusion-v1-5/stable-diffusion-v1-5",
+        subfolder="tokenizer"
+    )
 
-    tok = CLIPTokenizer.from_pretrained( "stable-diffusion-v1-5/stable-diffusion-v1-5", subfolder="tokenizer")
-    length = len(tok(caption))
+    tokens = tok(caption, truncation=False, add_special_tokens=True)["input_ids"]
 
-    exceed = True if length > LIMIT else False
+    length = len(tokens)
+    exceed = length > LIMIT
+
     return {
-        "length" : length,
-        "exceed" : exceed
+        "length": length,
+        "exceed": exceed
     }

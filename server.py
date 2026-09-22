@@ -9,6 +9,7 @@ import uuid, json
 import cv2 as cv
 import os
 import re
+import shutil
 
 
 app = Flask(__name__, static_folder="static", static_url_path="")
@@ -96,7 +97,8 @@ def parse_diffusion_variables(request_form):
         "num_samples" : int(f.get("num_samples", 1)),
         "precision"   : f.get("precision", "fp16"),
         "reduce"      : f.get("reduce", "median"),
-        "upscale"     : f.get("upscale", "4")
+        "upscale"     : f.get("upscale", "4"),
+        "caption"     : f.get("caption", "")
     }
     
 # ======= JOB ROUTES ===========
@@ -171,11 +173,30 @@ def get_step_file(job_id, name):
 def get_source_file(job_id, name):
     return send_from_directory(job_dir(job_id) / "sources", name)
 
+@app.get("/api/jobs/<job_id>/output/<name>")
+def get_output_file(job_id, name):
+    return send_from_directory(job_dir(job_id) / "output", name, max_age=0)
+
 @app.post("/api/jobs/<job_id>/reset")
 def reset_job(job_id):
     d = job_dir(job_id)
     invalidate_from(d, config.PIPELINE[0]['name'])
     return {"status": "success"}
+
+@app.post("/api/jobs/<job_id>/export")
+def export_job(job_id):
+
+    f = request.form
+    path = f.get("output_path")
+    if not path:
+        path = config.DEFAULT_OUTPUT
+    
+    d = job_dir(job_id)
+    dst = Path(path) / job_id
+    dst.mkdir(parents=True, exist_ok=True)
+    for p in (d / "output").iterdir():
+        shutil.copy(p, dst / p.name)
+    return {"status": "success", "path": str(dst)}
 
 # ======= MAIN ROUTES =============
 
@@ -192,13 +213,12 @@ def build_sprite_sheet_call(job_id):
 
     images = {}
     available_images = {}
-
-    saved = read_state(d).get("sources", {})
+    saved = {}
   
     for pos in ("front", "back", "left", "right"):
         f = request.files.get(pos)
         available_images[pos] = True
-        if f is None:
+        if not f:
             images[pos] = False
             available_images[pos] = False
             continue
@@ -207,7 +227,7 @@ def build_sprite_sheet_call(job_id):
         ext = Path(f.filename or "").suffix.lower() or ".png"
         src = d / "sources" / f"{pos}{ext}"
         src.write_bytes(data)
-        saved[pos] = str(src)
+        saved[pos] = src.relative_to(d).as_posix()   # "sources/right.png"
         images[pos] = data
 
     # Checks if there is three images 
@@ -226,6 +246,8 @@ def build_sprite_sheet_call(job_id):
 
     save_image(d, "spritesheet", sprite_sheet)
     save_data(d, "spritesheet", available_images)
+
+    # Save source files
     advance(d, "spritesheet", sources=saved)
 
     return {
@@ -309,20 +331,20 @@ def captioner_llm_call(job_id):
     results = count_caption_tokens(caption)
 
     # Save evidence
-    save_data(d, "captioner_llm", {"data": caption})
+    save_data(d, "captioner_llm", {"data": caption, **results})
     advance(d, "captioner_llm")
 
     return {
         "status": "success",
         "step": "captioner_llm",
-        "data": caption, 
-    } | results
+        "data": {"caption": caption, **results}
+    }
 
 @app.post("/api/jobs/<job_id>/diffusion")
 def diffusion_call(job_id):
 
     d = job_dir(job_id)  
-    saved_crops = read_state(d).get("sources", {})
+    saved_crops = {pos: str(d / rel) for pos, rel in read_state(d).get("sources", {}).items()}
 
     if not saved_crops:
         return jsonify({
@@ -349,23 +371,37 @@ def diffusion_call(job_id):
     with open(require_artifact(d, 'captioner_llm', 'json')) as f:
         caption = json.load(f)["data"]
 
+     # Validates if caption was edited
+    if request_data['caption'] != caption:
+        caption = request_data['caption'] 
+        save_data(d, "captioner_llm", {"data": caption, **count_caption_tokens(caption)}) # Saves new caption
+
     invalidate_from(d, "diffusion")
 
+    # Output dir
+    out_dir = d / "output"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
     try:
-        final_data = run_diffusion(image_crops=saved_crops, caption=caption, missing_pos=missing_view, parameters=request_data)
+        final_data = run_diffusion(image_crops=saved_crops, caption=caption, missing_pos=missing_view, parameters=request_data, out_dir=out_dir)
     
     except Exception as e:
         app.logger.exception("Diffusion failed")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-    save_data(d, "diffusion", final_data)
+    artifact = {
+        key: f"/api/jobs/{job_id}/output/{Path(p).name}"
+        for key, p in final_data.items()
+    }
+
+    save_data(d, "diffusion", artifact)
     advance(d, "diffusion")
 
     return {
 
         "status": "success",
         "step": "diffusion",
-        "data": final_data,
+        "data": artifact,
     }
 
     

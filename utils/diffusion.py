@@ -181,7 +181,7 @@ def generate(pipe, sheet, missing, caption, steps, guidance, cn_scale,
 
 
 # ==========================================================================
-def run_diffusion(image_crops, caption, missing_pos, parameters):
+def run_diffusion(image_crops, caption, missing_pos, parameters, out_dir):
   
     """
     Generate one missing pose. Returns paths + metrics.
@@ -193,11 +193,7 @@ def run_diffusion(image_crops, caption, missing_pos, parameters):
     if sheet_in is None or clipped:
         raise ValueError(f"Upscale {parameters.get('upscale')} clipped the crops. Please try a lower upscale")
 
-    if not parameters.get("output"):
-        out_dir = Path(DEFAULT_OUTPUT)
-    else:
-        out_dir = Path(parameters.get("output"))
-        
+    out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # blank the target quadrant so no source pixel leaks into hint or palette
@@ -236,16 +232,18 @@ def run_diffusion(image_crops, caption, missing_pos, parameters):
 
     snapped = out_dir / f"{missing_pos}_crop.png"
     raw     = out_dir / f"{missing_pos}_crop_raw.png"
-    
+    sheet_raw = out_dir / f"{missing_pos}_sheet_raw.png"
+    sheet_clean = out_dir / f"{missing_pos}_sheet_comp_clean.png"
+
     Image.fromarray(r["native"]).save(snapped)
     r["comp_raw"].save(raw)
-    r["raw_sheet"].save(out_dir / f"{missing_pos}_sheet_raw.png")
-    r["comp_clean"].save(out_dir / f"{missing_pos}_sheet_comp_clean.png")
+    r["raw_sheet"].save(sheet_raw)
+    r["comp_clean"].save(sheet_clean)
 
     return {
         "crop_snapped": str(snapped),
         "crop_raw": str(raw),
-        "sheet": str(out_dir / f"{missing_pos}_sheet.png"),
-        "palette_size": int(len(r["palette"])),
+        "sheet_raw": str(sheet_raw),
+        "sheet_clean": str(sheet_clean),
     }
 
