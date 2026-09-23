@@ -50,15 +50,41 @@ main section section {
 [data-step].active { outline: 2px solid #2196f3; }
 
 /* ===== Dropzones and outputs ===== */
+.image-area > h2 {
+  margin-top: 40px;
+  margin-bottom: 0px;
+}
+
 .image-row {
   display: flex;
   align-items: center;
   gap: 15px;
 }
 
+.position-crops-area {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;   
+  padding: 20px;
+  border-radius: 10px;
+  background-color: #cbc9c9;
+}
+
 .image-row > p {
   width: 3rem;
   margin: 0;
+}
+
+.image-row.truth-row {
+  align-items: center;
+  justify-content: center;
+  background-color: #eef4ff;   
+  padding: 20px 40px 20px 0px;
+  border-radius: 12px;         
+}
+
+.truth-row .dropzone {         
+  border-color: #6b8fd6;       
 }
 
 .dropzone, .output {
@@ -74,6 +100,7 @@ main section section {
   background-color: #fff;
   transition: background-color 0.2s, border-color 0.2s;
 }
+
 
 .dropzone.hover {
   background-color: #e3f2fd;
@@ -156,8 +183,8 @@ main section section {
   box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
 }
 
-.image-area     { flex: 1; }   /* 1 part */
-.captioner-area { flex: 2; }   /* 2 parts, twice as wide */
+.image-area     { flex: 1; }   
+.captioner-area { flex: 2; }   
 .diffusion-area { flex: 1.5; }
 
 
