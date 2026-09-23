@@ -12,7 +12,7 @@ const RENDERERS = {
 }
 
 // ====== ELEMENTS ========
-const dropzones = document.querySelectorAll(".dropzone");
+const dropzonesInput = document.querySelectorAll(".dropzone-input");
 const runButtonEl = document.getElementById('run-button');
 const errorEl = document.getElementById('error');
 const restartButtonEl = document.getElementById('restart-button');
@@ -27,7 +27,7 @@ window.addEventListener('drop', (e) => e.preventDefault());
 
 
 // ========= ELEMENTS EVENTS =============
-dropzones.forEach(zone => {
+dropzonesInput.forEach(zone => {
     // 1. Drag Over: Necessary to allow dropping
     zone.addEventListener('dragover', (e) => {
         e.preventDefault(); 
@@ -45,6 +45,9 @@ dropzones.forEach(zone => {
         e.preventDefault();
         zone.classList.remove('hover');
 
+        // Dont drop if is disabled
+        if(zone.classList.contains('disabled')) return;
+         
         const file = e.dataTransfer.files[0];
         if (!file) return;
 
@@ -223,7 +226,7 @@ function collectDropZoneFiles() {
 
     const form = new FormData();
 
-    dropzones.forEach(dropzone => {
+    dropzonesInput.forEach(dropzone => {
         const posSectionEl = dropzone.querySelector('img');
         if (posSectionEl?._file) form.append(dropzone.id, posSectionEl._file, posSectionEl._file.name)
     })
@@ -250,7 +253,17 @@ function collectDiffusionForms() {
 }
 
 function filledZones() {
-  return [...dropzones].filter(z => z.querySelector('img')).length;
+    
+    let totalFilled = 0;
+    let missing = [];
+
+    dropzonesInput.forEach(z => {
+        if(z.querySelector('img')) totalFilled++;
+        else missing.push(z.id)
+    })
+
+    return {"total": totalFilled, "missing": missing}
+   
 }
 
 function showError(message) {
@@ -331,7 +344,7 @@ function updateButtons() {
   runButtonEl.textContent = step.label;
   runButtonEl.dataset.step = step.name;
   // Only the upload step depends on how many zones are filled.
-  runButtonEl.disabled = step.needsFiles && filledZones() < MIN_IMAGES;
+  runButtonEl.disabled = step.needsFiles && filledZones().total < MIN_IMAGES;
 }
 
 
@@ -367,9 +380,34 @@ async function handlePipelineEnd() {
 }
 
 function renderDropZoneBoxes() {
-  const atStart = (job?.done.length ?? 0) === 0;
+    const atStart = (job?.done.length ?? 0) === 0;
+    let isBlocked = false;
 
-  dropzones.forEach(dropzone => {
+    // Handles the input zones
+    const filledData = filledZones()
+    if (filledData.total === MIN_IMAGES) {
+        
+        isBlocked = true; // raise flag
+        // Disable the zone with no image
+        const emptyZone = document.getElementById(filledData.missing[0]);
+        emptyZone.classList.add('disabled');
+        let p = emptyZone.querySelector('p');
+        p.textContent = 'Blocked';
+
+        // ------- ADD SVG PART HERE ------ //
+    }
+   
+
+  dropzonesInput.forEach(dropzone => {
+
+    if(!isBlocked) {
+        dropzone.classList.remove('disabled');
+        const p  = dropzone.querySelector('p')
+        if(p) p.remove()
+    
+    }
+        
+
     const hasImage = !!dropzone.querySelector('img');
     const btn = dropzone.querySelector('.remove-button');
     let p = dropzone.querySelector('p');
@@ -433,7 +471,7 @@ function renderSpriteSheet(el, artifact, status) {
         output.appendChild(img);
     }
 
-    dropzones.forEach(z => z.classList.toggle('frozen', status === 'done'));
+    dropzonesInput.forEach(z => z.classList.toggle('frozen', status === 'done'));
 }
 
 // STEP 2 RENDERER
