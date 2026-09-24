@@ -3,6 +3,7 @@ from flask import Flask, jsonify, request, send_file, abort, send_from_directory
 from utils.spritesheet_builder import build_sprite_sheet
 from utils.token_counter import count_caption_tokens
 from utils.diffusion import run_diffusion
+from utils.metrics import run_metrics
 import config
 from utils.caption_generator import CaptionGenerator
 import uuid, json
@@ -227,7 +228,7 @@ def build_sprite_sheet_call(job_id):
         ext = Path(f.filename or "").suffix.lower() or ".png"
         src = d / "sources" / f"{pos}{ext}"
         src.write_bytes(data)
-        saved[pos] = src.relative_to(d).as_posix()   # "sources/right.png"
+        saved[pos] = src.relative_to(d).as_posix() 
         images[pos] = data
 
     # Checks if there is three images 
@@ -357,7 +358,6 @@ def diffusion_call(job_id):
         available_pos = json.load(f)
 
     # Request variables
-
     request_data = parse_diffusion_variables(request)
 
     # Get views missing
@@ -390,7 +390,7 @@ def diffusion_call(job_id):
         return jsonify({"status": "error", "message": str(e)}), 500
 
     artifact = {
-        key: f"/api/jobs/{job_id}/output/{Path(p).name}"
+        key: f"output/{Path(p).name}"
         for key, p in final_data.items()
     }
 
@@ -404,4 +404,33 @@ def diffusion_call(job_id):
         "data": artifact,
     }
 
-    
+@app.post("/api/jobs/<job_id>/metrics")
+def metrics_call(job_id):
+
+    d = job_dir(job_id) 
+
+    f = request.files.get("truth")
+    if f is None:
+        return jsonify({"status": "error", "message": "truth image required"}), 400
+
+    data = f.read()
+    ext = {Path(f.filename or '').suffix.lower() or '.png'}
+    truth_path = d / "truth" / f"truth{ext}"
+    truth_path.parent.mkdir(parents=True, exist_ok=True)
+    truth_path.write_bytes(data)
+
+
+    with open(require_artifact(d, 'diffusion', 'json')) as fh:
+        generated = {k: str(d / rel) for k, rel in json.load(fh).items()}
+
+    # Filter the iamges that will be assessed
+    filtered_generated = {k: rel for k, rel in generated if k in ['crop_snapped', 'crop_raw']}
+
+    try:
+        metrics = run_metrics(truth_path, generated)
+
+    except Exception as e:
+        app.logger.exception("generate metrics failed")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+    save_data(d, "metrics", metrics)

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import numpy as np
 from PIL import Image
-from config import QUAD_SIZE, SHEET_SIZE, QUADRANT_CELL
+from config import QUAD_SIZE, SHEET_SIZE, QUADRANT_CELL, FLATTEN_BG
 
 # --------------------------------------------------------------------------
 # Background definition. Import these in color_profile.py / sprite_crops.py
@@ -21,10 +21,6 @@ from config import QUAD_SIZE, SHEET_SIZE, QUADRANT_CELL
 BG_THRESHOLD = 245
 ALPHA_THRESHOLD = 10
 
-# Background used when flattening RGBA -> RGB for training.
-# Avoid magenta: it is far out of SD's distribution and bleeds into character
-# edges as color fringing, which then corrupts palette snapping.
-FLATTEN_BG = (128, 128, 128)
 
 # --------------------------------------------------------------------------
 # Sheet layout
@@ -205,14 +201,29 @@ def flatten(img: Image.Image, bg=FLATTEN_BG):
     """
     Composite RGBA onto an opaque background.
 
-    A plain .convert("RGB") turns every transparent pixel BLACK, which
-    produces phantom dark outlines and cloaks in both captions and training.
     """
     if img.mode != "RGBA":
         return img.convert("RGB")
     canvas = Image.new("RGB", img.size, bg)
     canvas.paste(img, (0, 0), img)
     return canvas
+
+
+
+def unflatten(img, bg=FLATTEN_BG, tol=0):
+    """RGB -> RGBA, making pixels matching bg transparent."""
+    arr = np.array(img.convert("RGB")).astype(np.int16)
+    diff = np.abs(arr - np.array(bg, dtype=np.int16)).max(axis=-1)
+    alpha = np.where(diff <= tol, 0, 255).astype(np.uint8)
+    return Image.fromarray(np.dstack([arr.astype(np.uint8), alpha]))
+
+
+def unflatten_arr(arr, bg=FLATTEN_BG, tol=0):
+    """(H, W, 3) uint8 -> (H, W, 4) uint8."""
+    a = arr.astype(np.int16)
+    diff = np.abs(a - np.array(bg, dtype=np.int16)).max(axis=-1)
+    alpha = np.where(diff <= tol, 0, 255).astype(np.uint8)
+    return np.dstack([arr, alpha])
 
 
 def place_in_quadrant(content: Image.Image, bg=FLATTEN_BG):
@@ -224,6 +235,7 @@ def place_in_quadrant(content: Image.Image, bg=FLATTEN_BG):
     else:
         quad.paste(content, (ox, oy))
     return quad
+
 
 
 # --------------------------------------------------------------------------

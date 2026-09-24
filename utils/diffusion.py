@@ -158,25 +158,42 @@ def generate(pipe, sheet, missing, caption, steps, guidance, cn_scale,
         generator=gen,
     ).images[0]
 
+
+    # Unflatten images
     x0, y0, x1, y1 = quad_box(missing)
-    comp_raw = sheet.copy()
-    comp_raw.paste(raw.crop((x0, y0, x1, y1)), (x0, y0))
+
+    # RAW SHEET
+    raw_rgba = G.unflatten(raw, tol=0)
+
+    # RAW COMPOSED
+    comp_raw = sheet.copy().convert("RGBA")
+    quad = raw_rgba.crop((x0, y0, x1, y1))
+    comp_raw.paste(quad, (x0, y0), quad)
+
+    # RAW CROPPED
+    raw_crop = extract_native(raw, missing, reduce=reduce)
+    raw_crop = G.unflatten_arr(raw_crop, bg=G.FLATTEN_BG, tol=0)
+
 
     known = [p for p in G.POSITIONS if p != missing]
     native = extract_native(raw, missing, known_palette(sheet, known), reduce)
 
-    # rebuild the composited sheet from the cleaned sprite so what you see
-    # matches what the metrics score
-    clean = Image.fromarray(native).convert("RGBA")
+    # SNAPPED COMPOSED
+    clean = G.unflatten(Image.fromarray(native), tol=0)   
     ox, oy = G.content_offset()
-    comp_clean = sheet.copy()
-    comp_clean.paste(G.upscale_nearest(clean), (x0 + ox, y0 + oy))
+    comp_clean = sheet.copy().convert("RGBA")
+    up = G.upscale_nearest(clean)
+    comp_clean.paste(up, (x0 + ox, y0 + oy), up)
+
+    # SNAPPED CROP
+    native = G.unflatten_arr(native, bg=G.FLATTEN_BG, tol=0)
 
     return {
-        "raw_sheet": raw, 
-        "comp_raw": comp_raw, 
-        "comp_clean": comp_clean,
-        "native": native
+        "raw_sheet": raw_rgba, 
+        "snapped_crop": native,
+        "raw_crop": raw_crop, 
+        "comp_raw": comp_raw,
+        "comp_snapped": comp_clean
     }
 
 
@@ -230,20 +247,22 @@ def run_diffusion(image_crops, caption, missing_pos, parameters, out_dir):
         del pipe
         torch.cuda.empty_cache()
 
-    snapped = out_dir / f"{missing_pos}_crop.png"
-    raw     = out_dir / f"{missing_pos}_crop_raw.png"
-    sheet_raw = out_dir / f"{missing_pos}_sheet_raw.png"
-    sheet_clean = out_dir / f"{missing_pos}_sheet_comp_clean.png"
+    raw     = out_dir / f"{missing_pos}_raw.png"
+    snapped_crop = out_dir / f"{missing_pos}_crop_snapped.png"
+    raw_crop = out_dir / f"{missing_pos}_crop_raw.png"
+    sheet_raw = out_dir / f"{missing_pos}_sheet_composed_raw.png"
+    sheet_snapped = out_dir / f"{missing_pos}_sheet_composed_snapped.png"
 
-    Image.fromarray(r["native"]).save(snapped)
-    r["comp_raw"].save(raw)
-    r["raw_sheet"].save(sheet_raw)
-    r["comp_clean"].save(sheet_clean)
+    r["raw_sheet"].save(raw)
+    Image.fromarray(r["snapped_crop"]).save(snapped_crop)
+    Image.fromarray(r["raw_crop"]).save(raw_crop)
+    r["comp_raw"].save(sheet_raw)
+    r["comp_snapped"].save(sheet_snapped)
 
     return {
-        "crop_snapped": str(snapped),
-        "crop_raw": str(raw),
+        "raw": str(raw),
+        "crop_snapped": str(snapped_crop),
+        "crop_raw": str(raw_crop),
         "sheet_raw": str(sheet_raw),
-        "sheet_clean": str(sheet_clean),
+        "sheet_clean": str(sheet_snapped)
     }
-

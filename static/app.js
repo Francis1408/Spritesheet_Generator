@@ -116,7 +116,7 @@ closeModalButtonsEl.forEach(btn => {
 runButtonEl.addEventListener('click', async () => {
 
     // Retrieves the last step executed
-    const step = nextStep(job);
+    const step = nextStep();
     if (!step) return;
 
     // Disble remove buttons while a step is running
@@ -210,6 +210,20 @@ async function resume() {
     return { jobId, ...(await res.json()) };
 }
 
+async function runMetrics() {
+    
+    const body = await collectMetricsForms()
+    if(!body) return;
+
+    const res = await fetch(`/api/jobs/${job.jobId}/metrics`, { method: 'POST', body });
+    const json = await res.json();
+    if (!res.ok || json.status !== "success") {
+        showError(json.message ?? 'Error: metrics failed');
+        return;
+    }
+
+}
+
 async function restart() {
 
     const res = await fetch(`/api/jobs/${job.jobId}/reset`, { method: 'POST' });
@@ -252,6 +266,18 @@ function collectDiffusionForms() {
     
 }
 
+async function collectMetricsForms() {
+
+    const form = new FormData();
+
+    const truthImg = document.getElementById("truth")?.querySelector('img');
+    if(!truthImg) return null;
+    if(truthImg?._file) form.append("truth", truthImg._file)
+    
+    return form;
+    
+}
+
 function filledZones() {
     
     let totalFilled = 0;
@@ -267,12 +293,13 @@ function filledZones() {
 }
 
 function showError(message) {
-  if (errorEl) errorEl.textContent = message;
-  else alert(message);
+
+    if (errorEl) errorEl.textContent = message;
+    else alert(message);
 }
 
 function clearError() {
-  if (errorEl) errorEl.textContent = '';
+    if (errorEl) errorEl.textContent = '';
 }
 
 function makePreview(key, value) {
@@ -372,11 +399,17 @@ async function handlePipelineEnd() {
     // If has ended, handle final actions
     const form = new FormData();
     form.append("output_path", "")
+    const body = form
 
-    const res = await fetch(`/api/jobs/${job.jobId}/export`, {method: 'POST', form});
-    if(!res?.status === "success") {
-        showError('Error: Couldnt restart the pipeline')
+    const res = await fetch(`/api/jobs/${job.jobId}/export`, {method: 'POST', body});
+    if(!res.ok) {
+        showError('Error: Couldnt export the images')
     }
+
+    // If there is a truth image, generate metrics
+    const truthImage = document.getElementById("truth").querySelector('img') 
+    if(truthImage) await runMetrics()
+
 }
 
 function renderDropZoneBoxes() {
@@ -429,7 +462,7 @@ function renderDropZoneBoxes() {
 function render() {
 
     const done = new Set(job.done)
-    const next = nextStep(job);
+    const next = nextStep();
     
     restoreSources();
     renderDropZoneBoxes()
@@ -518,10 +551,10 @@ function renderDiffusion(el, artifact) {
     if(!artifact?.data) return;
 
     // clear previous renders, otherwise images pile up on every render()
-    const add = (host, url) => {
-        if (!host || !url) return;
+    const add = (host, rel) => {
+        if (!host || !rel) return;
         const img = document.createElement('img');
-        img.src = `${url}?t=${Date.now()}`;
+        img.src = `/api/jobs/${job.jobId}/${rel}?t=${Date.now()}`;
         host.appendChild(img);
     };
 
