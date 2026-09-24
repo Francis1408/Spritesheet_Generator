@@ -7,7 +7,8 @@ import lpips, torch
 def to_tensor(img):
     a = np.array(img, dtype=np.float32) / 255.0
     t = torch.from_numpy(a).permute(2, 0, 1).unsqueeze(0)
-    return t * 2.0 - 1.0
+
+    return t * 2.0 - 1.0 # LPIPS was calibrated on [-1, 1]
 
 
 def run_metrics(truth , generated):

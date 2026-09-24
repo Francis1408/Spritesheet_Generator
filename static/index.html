@@ -127,7 +127,7 @@
             </section>
             
             <div class="image-row">
-                <div class="dropzone" id="output">
+                <div class="dropzone" id="output-spritesheet">
                     <p>Output</p>
                 </div>
             </div>
@@ -137,20 +137,34 @@
         
         
         <section class="diffusion-area" data-step="diffusion">
-            <div class="output" id="output">
-                <p>Output here</p>
+
+            <div class="diffusion-schematics"><p>SCHEMATICS</p></div>
+            <h2>Generated Crops</h2>
+            
+            <div class="generated-images-area">
+                <div>
+                    <div class="output" id="output-snapped">
+                        <p>Output here</p>
+                    </div>
+                    <p>Snapped</p>
+                </div>
+                <div>
+                    <div class="output" id="output-raw">
+                        <p>Output here</p>
+                    </div>
+                    <p>Raw</p>
+                </div>
             </div>
-            <div class="output" id="output">
-                <p>Output here</p>
-            </div>
-            <label for="options">Choose an upscale</label>
-            <select name="options" id="upscale-option"></select>
+            
+
         </section>
     </main>
 
     <footer>
         <button id="run-button">Run</button>
         <button id="restart-button">Restart</button>
+        <label for="options">Choose an upscale</label>
+        <select name="options" id="upscale-option"></select>
     </footer>
         
     <script src="app.js"></script>

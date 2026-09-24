@@ -20,6 +20,7 @@ const upscaleDropdownEl = document.getElementById('upscale-option');
 const removeButtonsEl = document.querySelectorAll(".remove-button");
 const diffusionButtonEl = document.getElementById('diffusion-settings');
 const closeModalButtonsEl = document.querySelectorAll('.modal-btn');
+const truthZoneEl = document.getElementById('truth');
 
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => e.preventDefault());
@@ -27,62 +28,14 @@ window.addEventListener('drop', (e) => e.preventDefault());
 
 
 // ========= ELEMENTS EVENTS =============
-dropzonesInput.forEach(zone => {
-    // 1. Drag Over: Necessary to allow dropping
-    zone.addEventListener('dragover', (e) => {
-        e.preventDefault(); 
-        e.dataTransfer.dropEffect = 'copy';
-        zone.classList.add('hover');
-    });
 
-    // 2. Drag Leave: Visual cleanup when moving away
-    zone.addEventListener('dragleave', (e) => {
-        if (!zone.contains(e.relatedTarget)) zone.classList.remove('hover');
-    });
+dropzonesInput.forEach(zone => setupDropzone(zone, () => {
+    // Swapping a source after the sheet is built means the sheet is stale.
+    if (job?.done.includes('spritesheet')) rebuildFrom = 'spritesheet';
+    updateButtons();
+    renderDropZoneBoxes();
+}));
 
-    // 3. Drop: Move the image element to the new zone
-    zone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        zone.classList.remove('hover');
-
-        // Dont drop if is disabled
-        if(zone.classList.contains('disabled')) return;
-         
-        const file = e.dataTransfer.files[0];
-        if (!file) return;
-
-        if (!file.type.startsWith('image/')) {
-            showError(`${file.type || 'that file'} is not an image`);
-            return;
-        }
-        
-        // Clear the default text placeholder if it exists
-        const placeholder = zone.querySelector('p');
-        if (placeholder) placeholder.remove();
-
-        // Clear the current image if exists
-        const currentImg = zone.querySelector('img')
-        if (currentImg) {
-            if (currentImg.src.startsWith('blob:')) URL.revokeObjectURL(currentImg.src);
-            currentImg.remove();
-        }
-
-        const img = document.createElement('img');
-        img.src = URL.createObjectURL(file);
-        img.draggable = true;
-        img._file = file; // Keep the image bytes
-        img.onload = () => URL.revokeObjectURL(img.src);
-        zone.appendChild(img);
-
-        // Swapping a source after the sheet is built means the sheet is stale.
-        if (job?.done.includes('spritesheet')) rebuildFrom = 'spritesheet';
-
-        clearError();
-        updateButtons();
-        renderDropZoneBoxes();
-        handlePipelineEnd();
-    });
-});
 
 removeButtonsEl.forEach(btn => {
 
@@ -96,6 +49,14 @@ removeButtonsEl.forEach(btn => {
         if (img) {
         if (img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
         img.remove();
+        }
+
+        if (zone === truthZoneEl) {
+            btn.style.display = 'none';
+            const p = document.createElement('p');
+            p.textContent = 'Drop here';
+            zone.appendChild(p);
+            return;
         }
 
         renderDropZoneBoxes();
@@ -155,7 +116,10 @@ runButtonEl.addEventListener('click', async () => {
         updateButtons();
     }
 
+    handlePipelineEnd();
+
 })
+
 
 restartButtonEl.addEventListener('click', async () => {
     restart()
@@ -169,6 +133,66 @@ diffusionButtonEl.addEventListener('click', () => {
 
 
 // ===================================
+// ========= DROPZONE SETUP=============
+
+// ========= DROPZONE SETUP =============
+
+// Puts a file's image into a zone, replacing whatever was there
+function placeImage(zone, file) {
+    zone.querySelector('p')?.remove();
+
+    const currentImg = zone.querySelector('img');
+    if (currentImg) {
+        if (currentImg.src.startsWith('blob:')) URL.revokeObjectURL(currentImg.src);
+        currentImg.remove();
+    }
+
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(file);
+    img.draggable = true;
+    img._file = file; // Keep the image bytes
+    img.onload = () => URL.revokeObjectURL(img.src);
+    zone.appendChild(img);
+}
+
+// Generic drag-and-drop behavior; onDrop runs after a valid image is placed
+function setupDropzone(zone, onDrop) {
+    zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        zone.classList.add('hover');
+    });
+
+    zone.addEventListener('dragleave', (e) => {
+        if (!zone.contains(e.relatedTarget)) zone.classList.remove('hover');
+    });
+
+    zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('hover');
+
+        if (zone.classList.contains('disabled')) return;
+
+        const file = e.dataTransfer.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            showError(`${file.type || 'that file'} is not an image`);
+            return;
+        }
+
+        placeImage(zone, file);
+        clearError();
+        onDrop?.(zone, file);
+    });
+}
+
+// Truth zone: just holds the image, only needs its remove button shown
+setupDropzone(truthZoneEl, () => {
+    truthZoneEl.querySelector('.remove-button').style.display = 'block';
+});
+
+
 // ======= BACKEND COM ===============
 
 function nextStep() {
@@ -221,6 +245,8 @@ async function runMetrics() {
         showError(json.message ?? 'Error: metrics failed');
         return;
     }
+
+
 
 }
 
@@ -489,7 +515,7 @@ function render() {
 // STEP 1 RENDERER
 function renderSpriteSheet(el, artifact, status) {
 
-    const output = document.getElementById('output')
+    const output = document.getElementById('output-spritesheet')
 
     // Clear current image
     const currentImg = output.querySelector('img')
@@ -502,6 +528,7 @@ function renderSpriteSheet(el, artifact, status) {
         const img = document.createElement('img');
         img.src = `${artifact.url}?t=${Date.now()}`;
         output.appendChild(img);
+        if(output?.querySelector('p')) output.querySelector('p').remove()
     }
 
     dropzonesInput.forEach(z => z.classList.toggle('frozen', status === 'done'));
@@ -556,6 +583,7 @@ function renderDiffusion(el, artifact) {
         const img = document.createElement('img');
         img.src = `/api/jobs/${job.jobId}/${rel}?t=${Date.now()}`;
         host.appendChild(img);
+        if(host?.querySelector('p')) host.querySelector('p').remove()
     };
 
     add(rawOutput, artifact.data.crop_raw);

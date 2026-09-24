@@ -427,7 +427,7 @@ def metrics_call(job_id):
     filtered_generated = {k: rel for k, rel in generated if k in ['crop_snapped', 'crop_raw']}
 
     try:
-        metrics = run_metrics(truth_path, generated)
+        metrics = run_metrics(truth_path, filtered_generated)
 
     except Exception as e:
         app.logger.exception("generate metrics failed")
